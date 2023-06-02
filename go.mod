@@ -5,7 +5,8 @@ go 1.19
 require (
 	github.com/cloudwego/kitex v0.5.2
 	github.com/tikv/client-go/v2 v2.0.7
-	github.com/weedge/pkg v0.0.0-20230529151424-c449f1589b0f
+	github.com/weedge/pkg v0.0.0-20230602074650-53ef9798dd1f
+	golang.org/x/net v0.10.0
 )
 
 require (
@@ -43,7 +44,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
@@ -53,4 +53,4 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
-replace github.com/weedge/pkg => ../pkg
+//replace github.com/weedge/pkg => ../pkg

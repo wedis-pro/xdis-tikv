@@ -12,15 +12,16 @@ import (
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/safer"
 	"github.com/weedge/xdis-tikv/config"
+	kvDriver "github.com/weedge/xdis-tikv/driver"
 	"github.com/weedge/xdis-tikv/tikv"
 )
 
 // Storager core store struct for server use like redis
 type Storager struct {
-	opts *config.TikvClientOptions
+	opts *config.StoragerOptions
 
 	// tikv store client
-	kvClient *tikv.Client
+	kvClient kvDriver.IKV
 
 	// multi storager db instances on one kv store engine
 	dbs map[int]*DB
@@ -34,7 +35,7 @@ type Storager struct {
 	quit         chan struct{}
 }
 
-func Open(opts *config.TikvClientOptions) (store *Storager, err error) {
+func Open(opts *config.StoragerOptions) (store *Storager, err error) {
 	store = &Storager{}
 	store.InitOpts(opts)
 
@@ -46,7 +47,7 @@ func Open(opts *config.TikvClientOptions) (store *Storager, err error) {
 		}
 	}(store)
 
-	if store.kvClient, err = tikv.NewClient(opts); err != nil {
+	if store.kvClient, err = tikv.NewClient(&opts.TiKVClient); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +57,7 @@ func Open(opts *config.TikvClientOptions) (store *Storager, err error) {
 	return
 }
 
-func (m *Storager) InitOpts(opts *config.TikvClientOptions) {
+func (m *Storager) InitOpts(opts *config.StoragerOptions) {
 	if opts.Databases == 0 {
 		opts.Databases = config.DefaultDatabases
 	} else if opts.Databases > MaxDatabases {

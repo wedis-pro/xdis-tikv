@@ -16,7 +16,7 @@ type DB struct {
 	index int
 	// database index to varint buffer
 	indexVarBuf []byte
-	// IKVStoreDB impl
+	// IKV impl
 	kvDriver.IKV
 
 	string *DBString

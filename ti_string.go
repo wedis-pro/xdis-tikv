@@ -15,7 +15,34 @@ func NewDBString(db *DB) *DBString {
 	return &DBString{DB: db}
 }
 
+func checkKeySize(key []byte) error {
+	if len(key) > MaxKeySize || len(key) == 0 {
+		return ErrKeySize
+	}
+	return nil
+}
+
+func checkValueSize(value []byte) error {
+	if len(value) > MaxValueSize {
+		return ErrValueSize
+	}
+	return nil
+}
+
 func (db *DBString) Set(ctx context.Context, key []byte, value []byte) error {
+	if err := checkKeySize(key); err != nil {
+		return err
+	}
+	if err := checkValueSize(value); err != nil {
+		return err
+	}
+
+	key = db.encodeStringKey(key)
+	err := db.IKV.PutWithTTL(ctx, key, value, 0)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 func (db *DBString) SetNX(ctx context.Context, key []byte, value []byte) (n int64, err error)

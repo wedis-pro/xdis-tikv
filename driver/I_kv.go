@@ -1,6 +1,6 @@
 package driver
 
-import "golang.org/x/net/context"
+import "context"
 
 type IKV interface {
 	Get(ctx context.Context, key []byte) (val []byte, err error)

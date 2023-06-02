@@ -5,6 +5,7 @@ import (
 
 	"github.com/weedge/pkg/driver"
 	openkvdriver "github.com/weedge/pkg/driver/openkv"
+	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
 type DBString struct {
@@ -38,14 +39,35 @@ func (db *DBString) Set(ctx context.Context, key []byte, value []byte) error {
 	}
 
 	key = db.encodeStringKey(key)
-	err := db.IKV.PutWithTTL(ctx, key, value, 0)
+	err := db.kvClient.GetKVClient().PutWithTTL(ctx, key, value, 0)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-func (db *DBString) SetNX(ctx context.Context, key []byte, value []byte) (n int64, err error)
+
+func (db *DBString) SetNX(ctx context.Context, key []byte, value []byte) (n int64, err error) {
+	if err = checkKeySize(key); err != nil {
+		return
+	}
+	if err = checkValueSize(value); err != nil {
+		return
+	}
+
+	n = 1
+	key = db.encodeStringKey(key)
+	err = db.kvClient.GetKVClient().PutNotExists(ctx, key, value)
+	if err != nil {
+		if err == tikv.ErrKeyExist {
+			return 0, nil
+		}
+		return
+	}
+
+	return
+}
+
 func (db *DBString) SetEX(ctx context.Context, key []byte, duration int64, value []byte) error
 func (db *DBString) SetNXEX(ctx context.Context, key []byte, duration int64, value []byte) error
 func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, value []byte) error

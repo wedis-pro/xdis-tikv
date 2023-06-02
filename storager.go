@@ -11,9 +11,8 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/safer"
-	"github.com/weedge/xdis-tikv/config"
-	kvDriver "github.com/weedge/xdis-tikv/driver"
-	"github.com/weedge/xdis-tikv/tikv"
+	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
 // Storager core store struct for server use like redis
@@ -21,7 +20,7 @@ type Storager struct {
 	opts *config.StoragerOptions
 
 	// tikv store client
-	kvClient kvDriver.IKV
+	kvClient *tikv.Client
 
 	// multi storager db instances on one kv store engine
 	dbs map[int]*DB

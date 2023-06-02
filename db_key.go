@@ -1,3 +1,8 @@
+// @todo v2
+// for dist kv store key decode,
+// in order to Minimize interaction time
+// give some optimization space :)
+// notice: if has used old version key decode online, need some migration tool (clear 88)
 package xdistikv
 
 import (

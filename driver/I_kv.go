@@ -6,6 +6,7 @@ type IKV interface {
 	Get(ctx context.Context, key []byte) (val []byte, err error)
 	BatchGet(ctx context.Context, keys [][]byte) (vals [][]byte, err error)
 
+	PutNotExists(ctx context.Context, key, value []byte) error
 	PutWithTTL(ctx context.Context, key, value []byte, ttl uint64) error
 	BatchPutWithTTL(ctx context.Context, keys, values [][]byte, ttls []uint64) error
 

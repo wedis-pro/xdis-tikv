@@ -5,7 +5,7 @@ import (
 
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
-	kvDriver "github.com/weedge/xdis-tikv/driver"
+	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
 // DB core sturct
@@ -16,8 +16,8 @@ type DB struct {
 	index int
 	// database index to varint buffer
 	indexVarBuf []byte
-	// IKV impl
-	kvDriver.IKV
+	// kv client
+	kvClient *tikv.Client
 
 	string *DBString
 	list   *DBList
@@ -32,7 +32,7 @@ type DB struct {
 func NewDB(store *Storager, idx int) *DB {
 	db := &DB{store: store}
 	db.SetIndex(idx)
-	db.IKV = store.kvClient
+	db.kvClient = store.kvClient
 
 	db.string = NewDBString(db)
 	db.list = NewDBList(db)
@@ -66,11 +66,11 @@ func (m *DB) DBBitmap() driver.IBitmapCmd {
 }
 
 func (m *DB) Close() (err error) {
-	if utils.IsNil(m.IKV) {
+	if utils.IsNil(m.kvClient) {
 		return
 	}
 
-	return m.IKV.Close()
+	return m.kvClient.Close()
 }
 
 // Index gets the index of database.

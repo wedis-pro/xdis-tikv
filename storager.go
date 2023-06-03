@@ -46,12 +46,12 @@ func Open(opts *config.StoragerOptions) (store *Storager, err error) {
 		}
 	}(store)
 
+	store.dbs = make(map[int]*DB, opts.Databases)
+	store.quit = make(chan struct{})
+
 	if store.kvClient, err = tikv.NewClient(&opts.TiKVClient); err != nil {
 		return nil, err
 	}
-
-	store.dbs = make(map[int]*DB, opts.Databases)
-	store.quit = make(chan struct{})
 
 	return
 }

@@ -6,12 +6,11 @@ type IKV interface {
 	Get(ctx context.Context, key []byte) (val []byte, err error)
 	BatchGet(ctx context.Context, keys [][]byte) (vals [][]byte, err error)
 
+	Put(ctx context.Context, key, value []byte) error
 	PutNotExists(ctx context.Context, key, value []byte) error
-	PutWithTTL(ctx context.Context, key, value []byte, ttl uint64) error
-	BatchPutWithTTL(ctx context.Context, keys, values [][]byte, ttls []uint64) error
+	BatchPut(ctx context.Context, keys, values [][]byte) error
 
-	Delete(ctx context.Context, key []byte) error
-	BatchDelete(ctx context.Context, keys [][]byte) error
+	Incr(ctx context.Context, key []byte, delta int64) (int64, error)
 
 	// Scan queries continuous kv pairs in range [startKey, endKey), up to limit pairs.
 	// The returned keys are in lexicographical order.

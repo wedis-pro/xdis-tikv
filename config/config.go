@@ -14,14 +14,14 @@ type TikvClientOptions struct {
 	MaxInflightRequests  int    `mapstructure:"maxInflightRequests"`
 
 	// txn client conf
-	TxnRetryCn                   int  `mapstructure:"txRetryCn"`
-	TxnRegionBackoffDelayMs      int  `mapstructure:"txnRegionBackoffDelayMs"`
-	TxnRegionBackoffDelayAttemps int  `mapstructure:"txnRegionBackoffDelayAttemps"`
-	TxnLockBackoffDelayMs        int  `mapstructure:"txnLockBackoffDelayMs"`
-	TxnLockBackoffDelayAttemps   int  `mapstructure:"txnLockBackoffDelayAttemps"`
-	UseAsyncCommit               bool `mapstructure:"useAsyncCommit"`
-	TryOnePcCommit               bool `mapstructure:"tryOnePcCommit"`
-	UsePessimisticTxn            bool `mapstructure:"useAsyncCommit"`
+	UseAsyncCommit    bool `mapstructure:"useAsyncCommit"`
+	TryOnePcCommit    bool `mapstructure:"tryOnePcCommit"`
+	UsePessimisticTxn bool `mapstructure:"useAsyncCommit"`
+	//TxnRetryCn int `mapstructure:"txRetryCn"`
+	//TxnRegionBackoffDelayMs      int  `mapstructure:"txnRegionBackoffDelayMs"`
+	//TxnRegionBackoffDelayAttemps int  `mapstructure:"txnRegionBackoffDelayAttemps"`
+	//TxnLockBackoffDelayMs        int  `mapstructure:"txnLockBackoffDelayMs"`
+	//TxnLockBackoffDelayAttemps   int  `mapstructure:"txnLockBackoffDelayAttemps"`
 }
 
 type StoragerOptions struct {
@@ -33,4 +33,8 @@ type StoragerOptions struct {
 
 func DefaultTikvClientOptions() *TikvClientOptions {
 	return &TikvClientOptions{}
+}
+
+func DefaultStoragerOptions() *StoragerOptions {
+	return &StoragerOptions{}
 }

@@ -30,10 +30,14 @@ func NewClient(opts *config.TikvClientOptions) (client *Client, err error) {
 // use rawkv/txnkv connect pool (rr balance)
 func (m *Client) GetKVClient() driver.IKV {
 	if m.opts.UseTxnApi {
-		return m.txnKV
+		return m.GetTxnKVClient()
 	}
 
 	return m.rawKV
+}
+
+func (m *Client) GetTxnKVClient() *TxnKVClientWrapper {
+	return m.txnKV
 }
 
 func (m *Client) Close() error {

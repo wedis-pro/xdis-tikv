@@ -66,42 +66,34 @@ func (m *TxnKVClientWrapper) ExecuteTxn(ctx context.Context, handle TxHandle, tx
 }
 
 func (m *TxnKVClientWrapper) Put(ctx context.Context, key, value []byte) error {
-	tx, err := m.client.Begin()
-	if err != nil {
-		return err
-	}
+	_, err := m.ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		err := txn.Set(key, value)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}, WithAsyncCommit(true), WithTryOnePcCommit(true))
 
-	err = tx.Set(key, value)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = tx.Commit(ctx)
 	return err
 }
 
 func (m *TxnKVClientWrapper) PutNotExists(ctx context.Context, key, value []byte) (err error) {
-	tx, err := m.client.Begin()
-	if err != nil {
-		return err
-	}
+	_, err = m.ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		v, err := txn.Get(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		if v != nil {
+			return nil, ErrKeyExist
+		}
 
-	v, err := tx.Get(ctx, key)
-	if err != nil {
-		return err
-	}
-	if v != nil {
-		return ErrKeyExist
-	}
+		err = txn.Set(key, value)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}, WithAsyncCommit(true), WithTryOnePcCommit(true))
 
-	err = tx.Set(key, value)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = tx.Commit(ctx)
 	return
 }
 

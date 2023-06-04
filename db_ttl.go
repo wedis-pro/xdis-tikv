@@ -54,7 +54,14 @@ func (db *DB) rmExpire(ctx context.Context, t *transaction.KVTxn, dataType byte,
 	}
 
 	tk := db.expEncodeTimeKey(dataType, key, when)
-	t.Delete(mk)
-	t.Delete(tk)
+	err = t.Delete(mk)
+	if err != nil {
+		return 0, err
+	}
+	err = t.Delete(tk)
+	if err != nil {
+		return 0, err
+	}
+
 	return 1, nil
 }

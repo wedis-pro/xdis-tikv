@@ -110,6 +110,5 @@ func (m *RawKVClientWrapper) BatchDelete(ctx context.Context, keys [][]byte) err
 	return m.client.BatchDelete(ctx, keys)
 }
 
-func (m *RawKVClientWrapper) Delete(ctx context.Context, key []byte) error
 func (m *RawKVClientWrapper) Scan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error)
 func (m *RawKVClientWrapper) ReverseScan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error)

@@ -247,20 +247,30 @@ func (db *DBBitmap) GetBit(ctx context.Context, key []byte, offset int) (int64, 
 	return 0, nil
 }
 
+func (db *DBBitmap) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
+	ek := db.encodeBitmapKey(key)
+	if err = txn.Delete(ek); err != nil {
+		return
+	}
+
+	return 1, nil
+}
+
 // Del must atomic txn del
 func (db *DBBitmap) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 	if len(keys) == 0 {
 		return 0, nil
 	}
 
-	ekeys := make([][]byte, len(keys))
-	for i, k := range keys {
-		ekeys[i] = db.encodeBitmapKey(k)
+	for _, key := range keys {
+		if err := checkKeySize(key); err != nil {
+			return 0, err
+		}
 	}
 
 	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
-		for _, ekey := range ekeys {
-			err := txn.Delete(ekey)
+		for _, key := range keys {
+			_, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
 			}

@@ -304,9 +304,38 @@ func (db *DBHash) HValues(ctx context.Context, key []byte) ([][]byte, error) {
 	return v, nil
 }
 
+func (db *DBHash) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
+	// range ropen: [s,e)
+	start := db.hEncodeStartKey(key)
+	stop := db.hEncodeStopKey(key)
+	it, err := txn.Iter(start, stop)
+	if err != nil {
+		return
+	}
+	for ; it.Valid(); it.Next() {
+		if err = txn.Delete(it.Key()); err != nil {
+			return
+		}
+		num++
+	}
+	it.Close()
+
+	sk := db.hEncodeSizeKey(key)
+	if err = txn.Delete(sk); err != nil {
+		return 0, err
+	}
+
+	return
+}
+
 func (db *DBHash) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 	if len(keys) == 0 {
 		return 0, nil
+	}
+	for _, key := range keys {
+		if err := checkKeySize(key); err != nil {
+			return 0, err
+		}
 	}
 
 	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
@@ -315,7 +344,7 @@ func (db *DBHash) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 				return 0, err
 			}
 
-			err := txn.Delete(key)
+			_, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
 			}

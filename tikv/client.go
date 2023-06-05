@@ -1,6 +1,9 @@
 package tikv
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/weedge/xdis-tikv/v1/config"
 	"github.com/weedge/xdis-tikv/v1/driver"
 )
@@ -41,5 +44,24 @@ func (m *Client) GetTxnKVClient() *TxnKVClientWrapper {
 }
 
 func (m *Client) Close() error {
+	errs := []error{}
+	if m.txnKV != nil {
+		errs = append(errs, m.txnKV.Close())
+	}
+	if m.rawKV != nil {
+		errs = append(errs, m.rawKV.Close())
+	}
+
+	strErrs := []string{}
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		strErrs = append(strErrs, err.Error())
+	}
+	if len(strErrs) > 0 {
+		return fmt.Errorf("close err %s", strings.Join(strErrs, " | "))
+	}
+
 	return nil
 }

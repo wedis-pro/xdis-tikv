@@ -394,20 +394,30 @@ func (db *DBString) Append(ctx context.Context, key []byte, value []byte) (int64
 	return oldValLen.(int64), err
 }
 
+func (db *DBString) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
+	ek := db.encodeBitmapKey(key)
+	if err = txn.Delete(ek); err != nil {
+		return
+	}
+
+	return 1, nil
+}
+
 // Del must atomic txn del
 func (db *DBString) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 	if len(keys) == 0 {
 		return 0, nil
 	}
 
-	ekeys := make([][]byte, len(keys))
-	for i, k := range keys {
-		ekeys[i] = db.encodeStringKey(k)
+	for _, key := range keys {
+		if err := checkKeySize(key); err != nil {
+			return 0, err
+		}
 	}
 
 	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
-		for _, ekey := range ekeys {
-			err := txn.Delete(ekey)
+		for _, key := range keys {
+			_, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
 			}

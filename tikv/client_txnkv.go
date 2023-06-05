@@ -10,6 +10,7 @@ import (
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/utils"
 	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/v1/driver"
 )
 
 type TxnKVClientWrapper struct {
@@ -216,5 +217,35 @@ func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, startKey, endKey [
 		it.Next()
 	}
 
+	return
+}
+
+// Iter creates an Iterator positioned on the first entry that k <= entry's key.
+// If such entry is not found, it returns an invalid Iterator with no error.
+// It yields only keys that < upperBound. If upperBound is nil, it means the upperBound is unbounded.
+// The Iterator must be Closed after use.
+func (m *TxnKVClientWrapper) Iter(ctx context.Context, startKey, endKey []byte) (iter driver.IIterator, err error) {
+	txn, err := m.client.Begin()
+	if err != nil {
+		return nil, err
+	}
+	it, err := txn.Iter(startKey, endKey)
+	if err != nil {
+		return nil, err
+	}
+	iter = it
+	return
+}
+
+func (m *TxnKVClientWrapper) ReverseIter(ctx context.Context, endKey []byte) (iter driver.IIterator, err error) {
+	txn, err := m.client.Begin()
+	if err != nil {
+		return nil, err
+	}
+	it, err := txn.IterReverse(endKey)
+	if err != nil {
+		return nil, err
+	}
+	iter = it
 	return
 }

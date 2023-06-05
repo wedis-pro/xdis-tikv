@@ -1,6 +1,7 @@
 package tikv
 
 import (
+	"bytes"
 	"context"
 	"strconv"
 	"strings"
@@ -169,5 +170,51 @@ func (m *TxnKVClientWrapper) BatchPut(ctx context.Context, keys, values [][]byte
 	return err
 }
 
-func (m *TxnKVClientWrapper) Scan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error)
-func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error)
+func (m *TxnKVClientWrapper) Scan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error) {
+	txn, err := m.client.Begin()
+	if err != nil {
+		return nil, nil, err
+	}
+	it, err := txn.Iter(startKey, endKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer it.Close()
+
+	keys = [][]byte{}
+	values = [][]byte{}
+	for it.Valid() && limit > 0 {
+		keys = append(keys, it.Key()[:])
+		values = append(values, it.Value()[:])
+		limit--
+		it.Next()
+	}
+
+	return
+}
+
+func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, startKey, endKey []byte, limit int) (keys [][]byte, values [][]byte, err error) {
+	txn, err := m.client.Begin()
+	if err != nil {
+		return nil, nil, err
+	}
+	it, err := txn.IterReverse(endKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer it.Close()
+
+	keys = [][]byte{}
+	values = [][]byte{}
+	for it.Valid() && limit > 0 {
+		if bytes.Compare(startKey, it.Key()) > 0 {
+			break
+		}
+		keys = append(keys, it.Key()[:])
+		values = append(values, it.Value()[:])
+		limit--
+		it.Next()
+	}
+
+	return
+}

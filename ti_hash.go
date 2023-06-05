@@ -2,10 +2,10 @@ package xdistikv
 
 import (
 	"context"
-	"math"
 	"strconv"
 	"time"
 
+	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
@@ -235,7 +235,7 @@ func (db *DBHash) HGetAll(ctx context.Context, key []byte) ([]driver.FVPair, err
 
 	start := db.hEncodeStartKey(key)
 	end := db.hEncodeStopKey(key)
-	keys, values, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), math.MaxInt)
+	keys, values, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), rawkv.MaxRawKVScanLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (db *DBHash) HKeys(ctx context.Context, key []byte) ([][]byte, error) {
 
 	start := db.hEncodeStartKey(key)
 	end := db.hEncodeStopKey(key)
-	keys, _, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), math.MaxInt)
+	keys, _, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), rawkv.MaxRawKVScanLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (db *DBHash) HValues(ctx context.Context, key []byte) ([][]byte, error) {
 
 	start := db.hEncodeStartKey(key)
 	end := db.hEncodeStopKey(key)
-	keys, values, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), math.MaxInt)
+	keys, values, err := db.kvClient.GetKVClient().Scan(ctx, append(start, 0), append(end, 0), rawkv.MaxRawKVScanLimit)
 	if err != nil {
 		return nil, err
 	}

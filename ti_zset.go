@@ -7,6 +7,7 @@ import (
 	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/driver"
+	tDriver "github.com/weedge/xdis-tikv/v1/driver"
 )
 
 type DBZSet struct {
@@ -319,7 +320,7 @@ func (db *DBZSet) zrank(ctx context.Context, key []byte, member []byte, reverse 
 	} else {
 		maxKey := db.zEncodeStopScoreKey(key, MaxScore)
 		// range close [s,e]
-		keys, _, err = db.kvClient.GetKVClient().ReverseScan(ctx, append(maxKey, 0), sk, rawkv.MaxRawKVScanLimit)
+		keys, _, err = db.kvClient.GetKVClient().ReverseScan(ctx, sk, append(maxKey, 0), rawkv.MaxRawKVScanLimit)
 		if err != nil {
 			return 0, err
 		}
@@ -343,20 +344,169 @@ func (db *DBZSet) ZRevRank(ctx context.Context, key []byte, member []byte) (int6
 	return db.zrank(ctx, key, member, true)
 }
 
-func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, stop int) (int64, error)
+func (db *DBZSet) zIterator(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) (tDriver.IIterator, error) {
+	minKey := db.zEncodeStartScoreKey(key, min)
+	maxKey := db.zEncodeStopScoreKey(key, max)
 
-func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, max int64) (int64, error)
+	// range close: [min,max]
+	if !reverse {
+		return db.kvClient.GetTxnKVClient().Iter(ctx, minKey, append(maxKey, 0), offset, count)
+	}
+	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, minKey, append(maxKey, 0), offset, count)
+}
 
-func (db *DBZSet) ZRevRange(ctx context.Context, key []byte, start int, stop int) ([]driver.ScorePair, error)
+func (db *DBZSet) zRange(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) ([]driver.ScorePair, error) {
+	if len(key) > MaxKeySize {
+		return nil, ErrKeySize
+	}
 
-func (db *DBZSet) ZRevRangeByScore(ctx context.Context, key []byte, min int64, max int64, offset int, count int) ([]driver.ScorePair, error)
-func (db *DBZSet) ZRangeGeneric(ctx context.Context, key []byte, start int, stop int, reverse bool) ([]driver.ScorePair, error)
-func (db *DBZSet) ZRangeByScoreGeneric(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) ([]driver.ScorePair, error)
+	if offset < 0 {
+		return []driver.ScorePair{}, nil
+	}
+
+	nv := count
+	// count may be very large, so we must limit it for below mem make.
+	if nv <= 0 || nv > 1024 {
+		nv = 64
+	}
+	v := make([]driver.ScorePair, 0, nv)
+
+	it, err := db.zIterator(ctx, key, min, max, offset, count, reverse)
+	if err != nil {
+		return nil, err
+	}
+
+	for ; it.Valid(); it.Next() {
+		_, m, s, err := db.zDecodeScoreKey(it.Key())
+		if err != nil {
+			continue
+		}
+		v = append(v, driver.ScorePair{Member: m, Score: s})
+	}
+	it.Close()
+
+	return v, nil
+}
+
+// zParseLimit parse index pos to limit offset count
+func (db *DBZSet) zParseLimit(ctx context.Context, key []byte, start int, stop int) (offset int, count int, err error) {
+	if start < 0 || stop < 0 {
+		var size int64
+		size, err = db.ZCard(ctx, key)
+		if err != nil {
+			return
+		}
+
+		llen := int(size)
+
+		if start < 0 {
+			start = llen + start
+		}
+		if stop < 0 {
+			stop = llen + stop
+		}
+
+		if start < 0 {
+			start = 0
+		}
+
+		if start >= llen {
+			offset = -1
+			return
+		}
+	}
+
+	if start > stop {
+		offset = -1
+		return
+	}
+
+	offset = start
+	count = (stop - start) + 1
+	return
+}
+
+// ZRangeGeneric is a generic function for scan zset.
+// zrange/zrevrange index pos start,stop
+func (db *DBZSet) ZRangeGeneric(ctx context.Context, key []byte, start int, stop int, reverse bool) ([]driver.ScorePair, error) {
+	offset, count, err := db.zParseLimit(ctx, key, start, stop)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.zRange(ctx, key, MinScore, MaxScore, offset, count, reverse)
+}
+
+func (db *DBZSet) ZRevRange(ctx context.Context, key []byte, start int, stop int) ([]driver.ScorePair, error) {
+	return db.ZRangeGeneric(ctx, key, start, stop, true)
+}
+
+// ZRangeByScoreGeneric is a generic function to scan zset with score.
+// min and max must be inclusive
+// if no limit, set offset = 0 and count<0
+func (db *DBZSet) ZRangeByScoreGeneric(ctx context.Context, key []byte, min int64, max int64,
+	offset int, count int, reverse bool) ([]driver.ScorePair, error) {
+
+	return db.zRange(ctx, key, min, max, offset, count, reverse)
+}
+
+// ZRevRangeByScore gets the data with score at [min, max]
+func (db *DBZSet) ZRevRangeByScore(ctx context.Context, key []byte, min int64, max int64, offset int, count int) ([]driver.ScorePair, error) {
+	return db.ZRangeByScoreGeneric(ctx, key, min, max, offset, count, true)
+}
+
+// ZRangeByLex scans the zset lexicographically
+func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType, offset int, count int) ([][]byte, error) {
+	if min == nil {
+		min = db.zEncodeStartSetKey(key)
+	} else {
+		min = db.zEncodeSetKey(key, min)
+	}
+	if max == nil {
+		max = db.zEncodeStopSetKey(key)
+	} else {
+		max = db.zEncodeSetKey(key, max)
+	}
+
+	switch rangeType {
+	case driver.RangeClose:
+		max = append(max, 0)
+	case driver.RangeROpen:
+	case driver.RangeLOpen:
+		min = append(min, 0)
+		max = append(max, 0)
+	case driver.RangeOpen:
+		min = append(min, 0)
+	default:
+		return nil, nil
+	}
+
+	it, err := db.kvClient.GetTxnKVClient().Iter(ctx, min, max, offset, count)
+	if err != nil {
+		return nil, err
+	}
+	defer it.Close()
+
+	ay := make([][]byte, 0, 16)
+	for ; it.Valid(); it.Next() {
+		if _, m, err := db.zDecodeSetKey(it.Key()); err == nil {
+			ay = append(ay, m)
+		}
+	}
+
+	return ay, nil
+}
+
+// ZRemRangeByLex remvoes members in [min, max] lexicographically
+func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
+
+func (db *DBZSet) ZLexCount(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
+
 func (db *DBZSet) ZUnionStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error)
 func (db *DBZSet) ZInterStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error)
-func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType, offset int, count int) ([][]byte, error)
-func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
-func (db *DBZSet) ZLexCount(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
+
+func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, stop int) (int64, error)
+func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, max int64) (int64, error)
 
 func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error)
 func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error)

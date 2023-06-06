@@ -249,8 +249,8 @@ github.com/tikv/pd/client v0.0.0-20230329114254-1948c247c2b1 h1:bzlSSzw+6qTwPs8p
 github.com/tikv/pd/client v0.0.0-20230329114254-1948c247c2b1/go.mod h1:3cTcfo8GRA2H/uSttqA3LvMfMSHVBJaXk3IgkFXFVxo=
 github.com/twmb/murmur3 v1.1.3 h1:D83U0XYKcHRYwYIpBKf3Pks91Z0Byda/9SJ8B6EMRcA=
 github.com/twmb/murmur3 v1.1.3/go.mod h1:Qq/R7NUyOfr65zD+6Q5IHKsJLwP7exErjN6lyyq3OSQ=
-github.com/weedge/pkg v0.0.0-20230602074650-53ef9798dd1f h1:Vo3oEIBouHKspdsIMjln4CPaxj4rJFaCmcwrsVk7Vw0=
-github.com/weedge/pkg v0.0.0-20230602074650-53ef9798dd1f/go.mod h1:K/SeqBpX8GSebm2av2h/xfsw1+PzdHRnL8HVQsY4o9w=
+github.com/weedge/pkg v0.0.0-20230604100309-ee4766f9935c h1:oCC8xv4y26qxSTxcsRo7Zr9gylTeWmvjioK3tyZ88so=
+github.com/weedge/pkg v0.0.0-20230604100309-ee4766f9935c/go.mod h1:K/SeqBpX8GSebm2av2h/xfsw1+PzdHRnL8HVQsY4o9w=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

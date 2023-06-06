@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"time"
 
 	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
@@ -771,9 +772,99 @@ func (db *DBZSet) delete(ctx context.Context, txn *transaction.KVTxn, key []byte
 	num, err = db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1)
 	return
 }
-func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error)
-func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error)
-func (db *DBZSet) Expire(ctx context.Context, key []byte, duration int64) (int64, error)
-func (db *DBZSet) ExpireAt(ctx context.Context, key []byte, when int64) (int64, error)
-func (db *DBZSet) TTL(ctx context.Context, key []byte) (int64, error)
-func (db *DBZSet) Persist(ctx context.Context, key []byte) (int64, error)
+
+func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error) {
+	if len(keys) == 0 {
+		return 0, nil
+	}
+	for _, key := range keys {
+		if err := checkKeySize(key); err != nil {
+			return 0, err
+		}
+	}
+
+	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		for _, key := range keys {
+			if _, err := db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1); err != nil {
+				return 0, err
+			}
+		}
+		return int64(len(keys)), nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(len(keys)), nil
+}
+
+func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error) {
+	if err := checkKeySize(key); err != nil {
+		return 0, err
+	}
+	sk := db.zEncodeSizeKey(key)
+	v, err := db.kvClient.GetKVClient().Get(ctx, sk)
+	if v != nil && err == nil {
+		return 1, nil
+	}
+	return 0, err
+}
+
+func (db *DBZSet) sExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
+	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		if scnt, err := db.ZCard(ctx, key); err != nil || scnt == 0 {
+			return 0, err
+		}
+		if err := db.expireAt(txn, ZSetType, key, when); err != nil {
+			return 0, err
+		}
+		return 1, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return 1, nil
+}
+
+func (db *DBZSet) Expire(ctx context.Context, key []byte, duration int64) (int64, error) {
+	if duration <= 0 {
+		return 0, ErrExpireValue
+	}
+
+	return db.sExpireAt(ctx, key, time.Now().Unix()+duration)
+}
+
+func (db *DBZSet) ExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
+	if when <= time.Now().Unix() {
+		return 0, ErrExpireValue
+	}
+
+	return db.sExpireAt(ctx, key, when)
+}
+
+func (db *DBZSet) TTL(ctx context.Context, key []byte) (int64, error) {
+	if err := checkKeySize(key); err != nil {
+		return -1, err
+	}
+
+	return db.ttl(ctx, ZSetType, key)
+}
+
+func (db *DBZSet) Persist(ctx context.Context, key []byte) (int64, error) {
+	if err := checkKeySize(key); err != nil {
+		return 0, err
+	}
+
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		return db.rmExpire(ctx, txn, ZSetType, key)
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, nil
+	}
+
+	return res.(int64), err
+}

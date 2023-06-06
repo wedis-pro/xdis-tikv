@@ -3,10 +3,12 @@ package xdistikv
 import (
 	"bytes"
 	"context"
+	"strings"
 
 	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/driver"
+	"github.com/weedge/pkg/utils"
 	tDriver "github.com/weedge/xdis-tikv/v1/driver"
 )
 
@@ -28,10 +30,6 @@ func checkZSetKMSize(key []byte, member []byte) error {
 }
 
 func (db *DBZSet) zSetItem(ctx context.Context, txn *transaction.KVTxn, key []byte, score int64, member []byte) (int64, error) {
-	if score <= MinScore || score >= MaxScore {
-		return 0, ErrScoreOverflow
-	}
-
 	var exists int64
 	ek := db.zEncodeSetKey(key, member)
 
@@ -95,6 +93,10 @@ func (db *DBZSet) ZAdd(ctx context.Context, key []byte, args ...driver.ScorePair
 		member := args[i].Member
 		if err := checkZSetKMSize(key, member); err != nil {
 			return 0, err
+		}
+		score := args[i].Score
+		if score <= MinScore || score >= MaxScore {
+			return 0, ErrScoreOverflow
 		}
 	}
 
@@ -344,15 +346,15 @@ func (db *DBZSet) ZRevRank(ctx context.Context, key []byte, member []byte) (int6
 	return db.zrank(ctx, key, member, true)
 }
 
+// zIterator range close: [min,max]
 func (db *DBZSet) zIterator(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) (tDriver.IIterator, error) {
 	minKey := db.zEncodeStartScoreKey(key, min)
 	maxKey := db.zEncodeStopScoreKey(key, max)
 
-	// range close: [min,max]
 	if !reverse {
-		return db.kvClient.GetTxnKVClient().Iter(ctx, minKey, append(maxKey, 0), offset, count)
+		return db.kvClient.GetTxnKVClient().Iter(ctx, nil, minKey, append(maxKey, 0), offset, count)
 	}
-	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, minKey, append(maxKey, 0), offset, count)
+	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, nil, minKey, append(maxKey, 0), offset, count)
 }
 
 func (db *DBZSet) zRange(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) ([]driver.ScorePair, error) {
@@ -455,8 +457,7 @@ func (db *DBZSet) ZRevRangeByScore(ctx context.Context, key []byte, min int64, m
 	return db.ZRangeByScoreGeneric(ctx, key, min, max, offset, count, true)
 }
 
-// ZRangeByLex scans the zset lexicographically
-func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType, offset int, count int) ([][]byte, error) {
+func (db *DBZSet) scoreEncode(key []byte, min []byte, max []byte, rangeType driver.RangeType) (minScore []byte, maxScore []byte) {
 	if min == nil {
 		min = db.zEncodeStartSetKey(key)
 	} else {
@@ -470,18 +471,24 @@ func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max [
 
 	switch rangeType {
 	case driver.RangeClose:
-		max = append(max, 0)
+		maxScore = append(max, 0)
 	case driver.RangeROpen:
 	case driver.RangeLOpen:
-		min = append(min, 0)
-		max = append(max, 0)
+		minScore = append(min, 0)
+		maxScore = append(max, 0)
 	case driver.RangeOpen:
-		min = append(min, 0)
+		minScore = append(min, 0)
 	default:
 		return nil, nil
 	}
 
-	it, err := db.kvClient.GetTxnKVClient().Iter(ctx, min, max, offset, count)
+	return
+}
+
+// ZRangeByLex scans the zset lexicographically
+func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType, offset int, count int) ([][]byte, error) {
+	min, max = db.scoreEncode(key, min, max, rangeType)
+	it, err := db.kvClient.GetTxnKVClient().Iter(ctx, nil, min, max, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -498,16 +505,272 @@ func (db *DBZSet) ZRangeByLex(ctx context.Context, key []byte, min []byte, max [
 }
 
 // ZRemRangeByLex remvoes members in [min, max] lexicographically
-func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
+func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error) {
+	min, max = db.scoreEncode(key, min, max, rangeType)
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		it, err := db.kvClient.GetTxnKVClient().Iter(ctx, txn, min, max, 0, rawkv.MaxRawKVScanLimit)
+		if err != nil {
+			return 0, err
+		}
+		defer it.Close()
 
-func (db *DBZSet) ZLexCount(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error)
+		var n int64
+		for ; it.Valid(); it.Next() {
+			if err := txn.Delete(it.Key()); err != nil {
+				return 0, err
+			}
+			n++
+		}
 
-func (db *DBZSet) ZUnionStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error)
-func (db *DBZSet) ZInterStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error)
+		return n, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, nil
+	}
+	return res.(int64), nil
+}
 
-func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, stop int) (int64, error)
-func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, max int64) (int64, error)
+// ZLexCount gets the count of zset lexicographically.
+func (db *DBZSet) ZLexCount(ctx context.Context, key []byte, min []byte, max []byte, rangeType driver.RangeType) (int64, error) {
+	min, max = db.scoreEncode(key, min, max, rangeType)
+	it, err := db.kvClient.GetTxnKVClient().Iter(ctx, nil, min, max, 0, rawkv.MaxRawKVScanLimit)
+	if err != nil {
+		return 0, err
+	}
+	defer it.Close()
 
+	var n int64
+	for ; it.Valid(); it.Next() {
+		n++
+	}
+
+	return n, nil
+}
+
+func getAggregateFunc(aggregate []byte) func(int64, int64) int64 {
+	aggr := strings.ToLower(utils.Bytes2String(aggregate))
+	switch aggr {
+	case AggregateSum:
+		return func(a int64, b int64) int64 {
+			return a + b
+		}
+	case AggregateMax:
+		return func(a int64, b int64) int64 {
+			if a > b {
+				return a
+			}
+			return b
+		}
+	case AggregateMin:
+		return func(a int64, b int64) int64 {
+			if a > b {
+				return b
+			}
+			return a
+		}
+	}
+	return nil
+}
+
+// ZUnionStore unions the zsets and stores to dest zset.
+func (db *DBZSet) ZUnionStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error) {
+	aggregateFunc := getAggregateFunc(aggregate)
+	if aggregateFunc == nil {
+		return 0, ErrInvalidAggregate
+	}
+	if len(srcKeys) < 1 {
+		return 0, ErrInvalidSrcKeyNum
+	}
+	if weights != nil {
+		if len(srcKeys) != len(weights) {
+			return 0, ErrInvalidWeightNum
+		}
+	} else {
+		weights = make([]int64, len(srcKeys))
+		for i := 0; i < len(weights); i++ {
+			weights[i] = 1
+		}
+	}
+
+	var destMap = map[string]int64{}
+	for i, key := range srcKeys {
+		scorePairs, err := db.ZRangeGeneric(ctx, key, 0, -1, false)
+		if err != nil {
+			return 0, err
+		}
+		for _, pair := range scorePairs {
+			if score, ok := destMap[utils.Bytes2String(pair.Member)]; !ok {
+				destMap[utils.Bytes2String(pair.Member)] = pair.Score * weights[i]
+			} else {
+				destMap[utils.Bytes2String(pair.Member)] = aggregateFunc(score, pair.Score*weights[i])
+			}
+		}
+	}
+
+	return db.zDestDelStore(ctx, destKey, destMap)
+}
+
+// ZInterStore intersects the zsets and stores to dest zset.
+func (db *DBZSet) ZInterStore(ctx context.Context, destKey []byte, srcKeys [][]byte, weights []int64, aggregate []byte) (int64, error) {
+	aggregateFunc := getAggregateFunc(aggregate)
+	if aggregateFunc == nil {
+		return 0, ErrInvalidAggregate
+	}
+	if len(srcKeys) < 1 {
+		return 0, ErrInvalidSrcKeyNum
+	}
+	if weights != nil {
+		if len(srcKeys) != len(weights) {
+			return 0, ErrInvalidWeightNum
+		}
+	} else {
+		weights = make([]int64, len(srcKeys))
+		for i := 0; i < len(weights); i++ {
+			weights[i] = 1
+		}
+	}
+
+	var destMap = map[string]int64{}
+	scorePairs, err := db.ZRangeGeneric(ctx, srcKeys[0], 0, -1, false)
+	if err != nil {
+		return 0, err
+	}
+	for _, pair := range scorePairs {
+		destMap[utils.Bytes2String(pair.Member)] = pair.Score * weights[0]
+	}
+
+	for i, key := range srcKeys[1:] {
+		scorePairs, err := db.ZRangeGeneric(ctx, key, 0, -1, false)
+		if err != nil {
+			return 0, err
+		}
+		tmpMap := map[string]int64{}
+		for _, pair := range scorePairs {
+			if score, ok := destMap[utils.Bytes2String(pair.Member)]; ok {
+				tmpMap[utils.Bytes2String(pair.Member)] = aggregateFunc(score, pair.Score*weights[i+1])
+			}
+		}
+		destMap = tmpMap
+	}
+
+	return db.zDestDelStore(ctx, destKey, destMap)
+}
+
+func (db *DBZSet) zDestDelStore(ctx context.Context, destKey []byte, destMap map[string]int64) (int64, error) {
+	for member, score := range destMap {
+		if err := checkZSetKMSize(destKey, []byte(member)); err != nil {
+			return 0, err
+		}
+		if score <= MinScore || score >= MaxScore {
+			return 0, ErrScoreOverflow
+		}
+	}
+
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		if _, err := db.delete(ctx, txn, destKey); err != nil {
+			return 0, err
+		}
+
+		for member, score := range destMap {
+			if _, err := db.zSetItem(ctx, txn, destKey, score, []byte(member)); err != nil {
+				return 0, err
+			}
+		}
+
+		var n = int64(len(destMap))
+		sk := db.zEncodeSizeKey(destKey)
+		if err := txn.Set(sk, PutInt64(n)); err != nil {
+			return 0, err
+		}
+
+		return n, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, nil
+	}
+	return res.(int64), nil
+}
+
+func (db *DBZSet) zRemRange(ctx context.Context, txn *transaction.KVTxn, key []byte, min int64, max int64, offset int, count int) (int64, error) {
+	if len(key) > MaxKeySize {
+		return 0, ErrKeySize
+	}
+
+	it, err := db.zIterator(ctx, key, min, max, offset, count, false)
+	if err != nil {
+		return 0, err
+	}
+
+	var num int64
+	for ; it.Valid(); it.Next() {
+		sk := it.Key()
+		_, m, _, err := db.zDecodeScoreKey(sk)
+		if err != nil {
+			continue
+		}
+
+		if n, err := db.zDelItem(ctx, txn, key, m, true); err != nil {
+			return 0, err
+		} else if n == 1 {
+			num++
+		}
+
+		if err := txn.Delete(sk); err != nil {
+			return 0, err
+		}
+	}
+	it.Close()
+
+	if _, err := db.zIncrSize(ctx, txn, key, -num); err != nil {
+		return 0, err
+	}
+
+	return num, nil
+}
+
+// ZRemRangeByRank removes the member at range from start to stop.
+func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, stop int) (int64, error) {
+	offset, count, err := db.zParseLimit(ctx, key, start, stop)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		return db.zRemRange(ctx, txn, key, MinScore, MaxScore, offset, count)
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, nil
+	}
+	return res.(int64), nil
+}
+
+// ZRemRangeByScore removes the data with score at [min, max]
+func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, max int64) (int64, error) {
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		return db.zRemRange(ctx, txn, key, min, max, 0, -1)
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, nil
+	}
+	return res.(int64), nil
+}
+
+func (db *DBZSet) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
+	num, err = db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1)
+	return
+}
 func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error)
 func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error)
 func (db *DBZSet) Expire(ctx context.Context, key []byte, duration int64) (int64, error)

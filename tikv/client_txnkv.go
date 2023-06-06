@@ -230,10 +230,12 @@ func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, minKey, maxKey []b
 // If such entry is not found, it returns an invalid Iterator with no error.
 // It yields only keys that < upperBound. If upperBound is nil, it means the upperBound is unbounded.
 // The Iterator must be Closed after use.
-func (m *TxnKVClientWrapper) Iter(ctx context.Context, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
-	txn, err := m.client.Begin()
-	if err != nil {
-		return nil, err
+func (m *TxnKVClientWrapper) Iter(ctx context.Context, txn *transaction.KVTxn, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
+	if txn == nil {
+		txn, err = m.client.Begin()
+		if err != nil {
+			return nil, err
+		}
 	}
 	it, err := txn.Iter(minKey, maxKey)
 	if err != nil {
@@ -252,10 +254,12 @@ func (m *TxnKVClientWrapper) Iter(ctx context.Context, minKey, maxKey []byte, of
 	return
 }
 
-func (m *TxnKVClientWrapper) ReverseIter(ctx context.Context, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
-	txn, err := m.client.Begin()
-	if err != nil {
-		return nil, err
+func (m *TxnKVClientWrapper) ReverseIter(ctx context.Context, txn *transaction.KVTxn, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
+	if txn == nil {
+		txn, err = m.client.Begin()
+		if err != nil {
+			return nil, err
+		}
 	}
 	it, err := txn.IterReverse(maxKey)
 	if err != nil {

@@ -14,8 +14,8 @@ import (
 )
 
 type TxnKVClientWrapper struct {
-	opts   *config.TikvClientOptions
-	client *txnkv.Client
+	opts *config.TikvClientOptions
+	*txnkv.Client
 	//onceTxn *sync.Once
 }
 
@@ -27,7 +27,7 @@ func NewTxKVClient(opts *config.TikvClientOptions) (*TxnKVClientWrapper, error) 
 
 	cli := &TxnKVClientWrapper{
 		opts:   opts,
-		client: txnCli,
+		Client: txnCli,
 		//onceTxn: &sync.Once{},
 	}
 
@@ -35,11 +35,11 @@ func NewTxKVClient(opts *config.TikvClientOptions) (*TxnKVClientWrapper, error) 
 }
 
 func (m *TxnKVClientWrapper) Close() error {
-	return m.client.Close()
+	return m.Client.Close()
 }
 
 func (m *TxnKVClientWrapper) BeginOnceTxn(txnOpts ...TxnOpt) (txn *transaction.KVTxn, err error) {
-	return m.client.Begin()
+	return m.Client.Begin()
 }
 
 type TxHandle func(txn *transaction.KVTxn) (interface{}, error)
@@ -54,7 +54,7 @@ func (m *TxnKVClientWrapper) ExecuteTxn(ctx context.Context, handle TxHandle, tx
 		opt(opts)
 	}
 
-	tx, err := m.client.Begin()
+	tx, err := m.Client.Begin()
 	if err != nil {
 		return
 	}
@@ -106,7 +106,7 @@ func (m *TxnKVClientWrapper) PutNotExists(ctx context.Context, key, value []byte
 }
 
 func (m *TxnKVClientWrapper) Get(ctx context.Context, key []byte) (val []byte, err error) {
-	tx, err := m.client.Begin()
+	tx, err := m.Client.Begin()
 	if err != nil {
 		return
 	}
@@ -178,7 +178,7 @@ func (m *TxnKVClientWrapper) BatchPut(ctx context.Context, keys, values [][]byte
 }
 
 func (m *TxnKVClientWrapper) Scan(ctx context.Context, minKey, maxKey []byte, limit int) (keys [][]byte, values [][]byte, err error) {
-	txn, err := m.client.Begin()
+	txn, err := m.Client.Begin()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -201,7 +201,7 @@ func (m *TxnKVClientWrapper) Scan(ctx context.Context, minKey, maxKey []byte, li
 }
 
 func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, minKey, maxKey []byte, limit int) (keys [][]byte, values [][]byte, err error) {
-	txn, err := m.client.Begin()
+	txn, err := m.Client.Begin()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -232,7 +232,7 @@ func (m *TxnKVClientWrapper) ReverseScan(ctx context.Context, minKey, maxKey []b
 // The Iterator must be Closed after use.
 func (m *TxnKVClientWrapper) Iter(ctx context.Context, txn *transaction.KVTxn, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
 	if txn == nil {
-		txn, err = m.client.Begin()
+		txn, err = m.Client.Begin()
 		if err != nil {
 			return nil, err
 		}
@@ -256,7 +256,7 @@ func (m *TxnKVClientWrapper) Iter(ctx context.Context, txn *transaction.KVTxn, m
 
 func (m *TxnKVClientWrapper) ReverseIter(ctx context.Context, txn *transaction.KVTxn, minKey, maxKey []byte, offset, limit int) (iter driver.IIterator, err error) {
 	if txn == nil {
-		txn, err = m.client.Begin()
+		txn, err = m.Client.Begin()
 		if err != nil {
 			return nil, err
 		}

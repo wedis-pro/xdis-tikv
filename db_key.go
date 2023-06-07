@@ -661,8 +661,13 @@ func PutUint16(v uint16) []byte {
 
 // PutInt64 puts the 64 integer.
 func PutInt64(v int64) []byte {
+	return PutUInt64(uint64(v))
+}
+
+// PutUInt64 puts the u64 integer.
+func PutUInt64(v uint64) []byte {
 	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(v))
+	binary.LittleEndian.PutUint64(b, v)
 	return b
 }
 

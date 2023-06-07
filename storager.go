@@ -62,6 +62,14 @@ func (m *Storager) InitOpts(opts *config.StoragerOptions) {
 	} else if opts.Databases > MaxDatabases {
 		opts.Databases = MaxDatabases
 	}
+
+	if opts.TTLCheckInterval < 0 {
+		opts.TTLCheckInterval = config.DefaultTTLCheckInterval
+	}
+	if opts.TTLCheckInterval > config.MaxTTLCheckInterval-config.DefaultTTLCheckInterval {
+		opts.TTLCheckInterval = config.MaxTTLCheckInterval - config.DefaultTTLCheckInterval
+	}
+
 	m.opts = opts
 }
 
@@ -126,10 +134,6 @@ func (m *Storager) checkTTL() {
 	m.ttlCheckers = make([]*TTLChecker, 0, config.DefaultDatabases)
 	m.ttlCheckerCh = make(chan *TTLChecker, config.DefaultDatabases)
 
-	if m.opts.TTLCheckInterval < 0 {
-		m.opts.TTLCheckInterval = config.DefaultTTLCheckInterval
-	}
-
 	safer.GoSafely(&m.wg, false, func() {
 		tick := time.NewTicker(time.Duration(m.opts.TTLCheckInterval) * time.Second)
 		defer tick.Stop()
@@ -138,11 +142,11 @@ func (m *Storager) checkTTL() {
 			select {
 			case <-tick.C:
 				for _, c := range m.ttlCheckers {
-					c.check()
+					c.Run(context.Background())
 				}
 			case c := <-m.ttlCheckerCh:
 				m.ttlCheckers = append(m.ttlCheckers, c)
-				c.check()
+				c.Run(context.Background())
 			case <-m.quit:
 				return
 			}

@@ -1,8 +1,3 @@
-// @todo v2
-// for dist kv store key codec,
-// in order to Minimize interaction time
-// give some optimization space :)
-// notice: if has used old version key codec online, need some migration tool (clear 88)
 package xdistikv
 
 import (
@@ -23,6 +18,7 @@ func (db *DB) checkKeyIndex(buf []byte) (int, error) {
 }
 
 // --- bitmap ---
+
 func (db *DB) encodeBitmapKey(key []byte) []byte {
 	ek := make([]byte, len(key)+1+len(db.indexVarBuf))
 	pos := copy(ek, db.indexVarBuf)
@@ -645,7 +641,23 @@ func (db *DB) expDecodeTimeKey(tk []byte) (byte, []byte, int64, error) {
 	return tk[pos+9], tk[pos+10:], int64(binary.BigEndian.Uint64(tk[pos+1:])), nil
 }
 
+// --- job key ----
+func jobEncodeLeaderKey() []byte {
+	return PutUint16(LeaderPreKey)
+}
+
+func jobEncodeGCPointKey() []byte {
+	return PutUint16(GCPreKey)
+}
+
 //--- ext binary number ---
+
+// PutUint16 puts the u16 integer.
+func PutUint16(v uint16) []byte {
+	b := make([]byte, 2)
+	binary.LittleEndian.PutUint16(b, v)
+	return b
+}
 
 // PutInt64 puts the 64 integer.
 func PutInt64(v int64) []byte {

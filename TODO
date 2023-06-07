@@ -1,0 +1,14 @@
+@todo v2
+give some optimization space :)
+ensure:
+1. for dist kv store key codec, in order to Minimize interaction time.
+
+2. support namespace/tenantId(appId/bizId) isolation.
+
+3. key codec add slot, in order to concurrency ttl/gc checker 
+
+optional:
+1. add locker feature by using tikv
+
+tips: 
+if has used old version key codec online, need some migration tool (clear 88)

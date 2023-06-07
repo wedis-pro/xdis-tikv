@@ -71,7 +71,7 @@ func (d DataType) String() string {
 	}
 }
 
-// for backend store key
+// for backend store key type
 // notice: Please add new type in order
 const (
 	NoneType byte = iota
@@ -157,6 +157,9 @@ var (
 
 	// For different common errors
 	ErrScoreMiss = errors.New("zset score miss")
+
+	// for job err
+	ErrLeaderValSize = errors.New("invalid leader checker job val size")
 )
 
 // For list op
@@ -209,4 +212,10 @@ const (
 	BitOR  = "or"
 	BitXOR = "xor"
 	BitNot = "not"
+)
+
+// For checker job operation key
+const (
+	LeaderPreKey = 255
+	GCPreKey     = 256
 )

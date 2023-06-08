@@ -56,7 +56,7 @@ func encodeIndex(index int) []byte {
 
 // --- bitmap ---
 
-// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) encodeBitmapKey(key []byte) []byte {
 	ek := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(ek, db.store.prefixKey)
@@ -84,7 +84,7 @@ func (db *DB) decodeBitmapKey(ek []byte) ([]byte, error) {
 
 // --- string ---
 
-// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) encodeStringKey(key []byte) []byte {
 	ek := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(ek, db.store.prefixKey)
@@ -112,7 +112,7 @@ func (db *DB) decodeStringKey(ek []byte) ([]byte, error) {
 
 // --- list ---
 
-// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) lEncodeMetaKey(key []byte) []byte {
 	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -138,6 +138,7 @@ func (db *DB) lDecodeMetaKey(ek []byte) ([]byte, error) {
 	return ek[pos:], nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | seq(4)
 func (db *DB) lEncodeListKey(key []byte, seq int32) []byte {
 	buf := make([]byte, len(key)+7+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -190,6 +191,7 @@ func (db *DB) lDecodeListKey(ek []byte) (key []byte, seq int32, err error) {
 
 // --- hash ---
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) hEncodeSizeKey(key []byte) []byte {
 	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -216,6 +218,7 @@ func (db *DB) hDecodeSizeKey(ek []byte) ([]byte, error) {
 	return ek[pos:], nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | hashStartSep(1) | field
 func (db *DB) hEncodeHashKey(key []byte, field []byte) []byte {
 	buf := make([]byte, len(key)+len(field)+1+1+2+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -272,10 +275,12 @@ func (db *DB) hDecodeHashKey(ek []byte) ([]byte, []byte, error) {
 	return key, field, nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | hashStartSep(1)
 func (db *DB) hEncodeStartKey(key []byte) []byte {
 	return db.hEncodeHashKey(key, nil)
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | hashStopSep(1)
 func (db *DB) hEncodeStopKey(key []byte) []byte {
 	k := db.hEncodeHashKey(key, nil)
 
@@ -285,6 +290,8 @@ func (db *DB) hEncodeStopKey(key []byte) []byte {
 }
 
 // --- set ---
+
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) sEncodeSizeKey(key []byte) []byte {
 	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -292,9 +299,7 @@ func (db *DB) sEncodeSizeKey(key []byte) []byte {
 	pos += n
 
 	buf[pos] = SSizeType
-
 	pos++
-
 	copy(buf[pos:], key)
 	return buf
 }
@@ -313,6 +318,7 @@ func (db *DB) sDecodeSizeKey(ek []byte) ([]byte, error) {
 	return ek[pos:], nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | setStartSep(1) | member
 func (db *DB) sEncodeSetKey(key []byte, member []byte) []byte {
 	buf := make([]byte, len(key)+len(member)+1+1+2+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -370,10 +376,12 @@ func (db *DB) sDecodeSetKey(ek []byte) ([]byte, []byte, error) {
 	return key, member, nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | setStartSep(1)
 func (db *DB) sEncodeStartKey(key []byte) []byte {
 	return db.sEncodeSetKey(key, nil)
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | setStopSep(1)
 func (db *DB) sEncodeStopKey(key []byte) []byte {
 	k := db.sEncodeSetKey(key, nil)
 
@@ -384,6 +392,7 @@ func (db *DB) sEncodeStopKey(key []byte) []byte {
 
 // --- zset ---
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | key
 func (db *DB) zEncodeSizeKey(key []byte) []byte {
 	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -408,6 +417,7 @@ func (db *DB) zDecodeSizeKey(ek []byte) ([]byte, error) {
 	return ek[pos:], nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetStartMemSep(1) | member
 func (db *DB) zEncodeSetKey(key []byte, member []byte) []byte {
 	buf := make([]byte, len(key)+len(member)+4+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -464,17 +474,20 @@ func (db *DB) zDecodeSetKey(ek []byte) ([]byte, []byte, error) {
 	return key, member, nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetStartMemSep(1)
 func (db *DB) zEncodeStartSetKey(key []byte) []byte {
 	k := db.zEncodeSetKey(key, nil)
 	return k
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetStopMemSep(1)
 func (db *DB) zEncodeStopSetKey(key []byte) []byte {
 	k := db.zEncodeSetKey(key, nil)
-	k[len(k)-1] = zsetStartMemSep + 1
+	k[len(k)-1] = zsetStopMemSep
 	return k
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetNScoreSep/zsetPScoreSep(1) | score(8) | zsetStartMemSep(1) | member
 func (db *DB) zEncodeScoreKey(key []byte, member []byte, score int64) []byte {
 	buf := make([]byte, len(key)+len(member)+13+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -507,10 +520,12 @@ func (db *DB) zEncodeScoreKey(key []byte, member []byte, score int64) []byte {
 	return buf
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetNScoreSep/zsetPScoreSep(1) | score(8) | zsetStartMemSep(1)
 func (db *DB) zEncodeStartScoreKey(key []byte, score int64) []byte {
 	return db.zEncodeScoreKey(key, nil, score)
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | dataType(1) | len(key)(2) | key | zsetNScoreSep/zsetPScoreSep(1) | score(8) | zsetStopMemSep(1)
 func (db *DB) zEncodeStopScoreKey(key []byte, score int64) []byte {
 	k := db.zEncodeScoreKey(key, nil, score)
 	k[len(k)-1] = zsetStopMemSep
@@ -630,6 +645,7 @@ func (db *DB) decodeScanKey(storeDataType byte, ek []byte) (key []byte, err erro
 
 // --- expire ttl ---
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | ExpMetaType(1) | dataType(1) | key
 func (db *DB) expEncodeMetaKey(dataType byte, key []byte) []byte {
 	buf := make([]byte, len(key)+2+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)
@@ -659,6 +675,7 @@ func (db *DB) expDecodeMetaKey(mk []byte) (byte, []byte, error) {
 	return mk[pos+1], mk[pos+2:], nil
 }
 
+// (len(prefixKey)(2) | prefixKey) | (len(dbIndex)(2) | dbIndex) | ExpTimeType(1) | when(8) | dataType(1) | key
 func (db *DB) expEncodeTimeKey(dataType byte, key []byte, when int64) []byte {
 	buf := make([]byte, len(key)+10+len(db.indexVarBuf)+len(db.store.prefixKey))
 	pos := copy(buf, db.store.prefixKey)

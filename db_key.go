@@ -4,24 +4,64 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/weedge/pkg/utils"
 )
 
-func (db *DB) checkKeyIndex(buf []byte) (int, error) {
-	if len(buf) < len(db.indexVarBuf) {
+func (db *DB) checkKey(buf []byte) (int, error) {
+	prefixKeyLen := len(db.store.prefixKey)
+	dbIndexLen := len(db.indexVarBuf)
+	l := prefixKeyLen + dbIndexLen
+	if len(buf) < l {
 		return 0, fmt.Errorf("key is too small")
 	}
-	if !bytes.Equal(db.indexVarBuf, buf[0:len(db.indexVarBuf)]) {
+	if !bytes.Equal(db.store.prefixKey, buf[0:prefixKeyLen]) {
+		return 0, fmt.Errorf("invalid prefix key")
+	}
+	if !bytes.Equal(db.indexVarBuf, buf[prefixKeyLen:l]) {
 		return 0, fmt.Errorf("invalid db index")
 	}
 
-	return len(db.indexVarBuf), nil
+	return l, nil
+}
+
+// --- prefix key ---
+
+func encodePrefixKey(prefix string) []byte {
+	if len(prefix) == 0 {
+		return []byte{}
+	}
+	buf := make([]byte, 2+len(prefix))
+	idx := 0
+	binary.BigEndian.PutUint16(buf[idx:], uint16(len(prefix)))
+	idx += 2
+	copy(buf[idx:], utils.String2Bytes(prefix))
+
+	return buf
+}
+
+// --- db index ---
+
+func encodeIndex(index int) []byte {
+	// the most size for varint is 10 bytes
+	ebuf := make([]byte, 10)
+	n := binary.PutUvarint(ebuf, uint64(index))
+
+	buf := make([]byte, 2+n)
+	binary.BigEndian.PutUint16(buf[0:], uint16(n))
+	copy(buf[2:], ebuf[0:n])
+
+	return buf
 }
 
 // --- bitmap ---
 
+// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
 func (db *DB) encodeBitmapKey(key []byte) []byte {
-	ek := make([]byte, len(key)+1+len(db.indexVarBuf))
-	pos := copy(ek, db.indexVarBuf)
+	ek := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(ek, db.store.prefixKey)
+	n := copy(ek[pos:], db.indexVarBuf)
+	pos += n
 	ek[pos] = BitmapType
 	pos++
 	copy(ek[pos:], key)
@@ -29,7 +69,7 @@ func (db *DB) encodeBitmapKey(key []byte) []byte {
 }
 
 func (db *DB) decodeBitmapKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +84,12 @@ func (db *DB) decodeBitmapKey(ek []byte) ([]byte, error) {
 
 // --- string ---
 
+// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
 func (db *DB) encodeStringKey(key []byte) []byte {
-	ek := make([]byte, len(key)+1+len(db.indexVarBuf))
-	pos := copy(ek, db.indexVarBuf)
+	ek := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(ek, db.store.prefixKey)
+	n := copy(ek[pos:], db.indexVarBuf)
+	pos += n
 	ek[pos] = StringType
 	pos++
 	copy(ek[pos:], key)
@@ -54,7 +97,7 @@ func (db *DB) encodeStringKey(key []byte) []byte {
 }
 
 func (db *DB) decodeStringKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -69,18 +112,20 @@ func (db *DB) decodeStringKey(ek []byte) ([]byte, error) {
 
 // --- list ---
 
+// len(prefixKey)(2) | prefixKey | len(dbIndex)(2) | dbIndex | dataType(1) | key
 func (db *DB) lEncodeMetaKey(key []byte) []byte {
-	buf := make([]byte, len(key)+1+len(db.indexVarBuf))
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 	buf[pos] = LMetaType
 	pos++
-
 	copy(buf[pos:], key)
 	return buf
 }
 
 func (db *DB) lDecodeMetaKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -94,10 +139,10 @@ func (db *DB) lDecodeMetaKey(ek []byte) ([]byte, error) {
 }
 
 func (db *DB) lEncodeListKey(key []byte, seq int32) []byte {
-	buf := make([]byte, len(key)+7+len(db.indexVarBuf))
-
-	pos := copy(buf, db.indexVarBuf)
-
+	buf := make([]byte, len(key)+7+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 	buf[pos] = ListType
 	pos++
 
@@ -114,7 +159,7 @@ func (db *DB) lEncodeListKey(key []byte, seq int32) []byte {
 
 func (db *DB) lDecodeListKey(ek []byte) (key []byte, seq int32, err error) {
 	pos := 0
-	pos, err = db.checkKeyIndex(ek)
+	pos, err = db.checkKey(ek)
 	if err != nil {
 		return
 	}
@@ -146,14 +191,11 @@ func (db *DB) lDecodeListKey(ek []byte) (key []byte, seq int32, err error) {
 // --- hash ---
 
 func (db *DB) hEncodeSizeKey(key []byte) []byte {
-	buf := make([]byte, len(key)+1+len(db.indexVarBuf))
-
-	pos := 0
-	n := copy(buf, db.indexVarBuf)
-
+	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
 	pos += n
 	buf[pos] = HSizeType
-
 	pos++
 	copy(buf[pos:], key)
 
@@ -161,7 +203,7 @@ func (db *DB) hEncodeSizeKey(key []byte) []byte {
 }
 
 func (db *DB) hDecodeSizeKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -175,10 +217,9 @@ func (db *DB) hDecodeSizeKey(ek []byte) ([]byte, error) {
 }
 
 func (db *DB) hEncodeHashKey(key []byte, field []byte) []byte {
-	buf := make([]byte, len(key)+len(field)+1+1+2+len(db.indexVarBuf))
-
-	pos := 0
-	n := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+len(field)+1+1+2+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
 	pos += n
 
 	buf[pos] = HashType
@@ -198,7 +239,7 @@ func (db *DB) hEncodeHashKey(key []byte, field []byte) []byte {
 }
 
 func (db *DB) hDecodeHashKey(ek []byte) ([]byte, []byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -245,9 +286,11 @@ func (db *DB) hEncodeStopKey(key []byte) []byte {
 
 // --- set ---
 func (db *DB) sEncodeSizeKey(key []byte) []byte {
-	buf := make([]byte, len(key)+1+len(db.indexVarBuf))
+	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
-	pos := copy(buf, db.indexVarBuf)
 	buf[pos] = SSizeType
 
 	pos++
@@ -257,7 +300,7 @@ func (db *DB) sEncodeSizeKey(key []byte) []byte {
 }
 
 func (db *DB) sDecodeSizeKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -271,9 +314,10 @@ func (db *DB) sDecodeSizeKey(ek []byte) ([]byte, error) {
 }
 
 func (db *DB) sEncodeSetKey(key []byte, member []byte) []byte {
-	buf := make([]byte, len(key)+len(member)+1+1+2+len(db.indexVarBuf))
-
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+len(member)+1+1+2+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
 	buf[pos] = SetType
 	pos++
@@ -292,7 +336,7 @@ func (db *DB) sEncodeSetKey(key []byte, member []byte) []byte {
 }
 
 func (db *DB) sDecodeSetKey(ek []byte) ([]byte, []byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -341,8 +385,10 @@ func (db *DB) sEncodeStopKey(key []byte) []byte {
 // --- zset ---
 
 func (db *DB) zEncodeSizeKey(key []byte) []byte {
-	buf := make([]byte, len(key)+1+len(db.indexVarBuf))
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+1+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 	buf[pos] = ZSizeType
 	pos++
 	copy(buf[pos:], key)
@@ -350,7 +396,7 @@ func (db *DB) zEncodeSizeKey(key []byte) []byte {
 }
 
 func (db *DB) zDecodeSizeKey(ek []byte) ([]byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, err
 	}
@@ -363,9 +409,10 @@ func (db *DB) zDecodeSizeKey(ek []byte) ([]byte, error) {
 }
 
 func (db *DB) zEncodeSetKey(key []byte, member []byte) []byte {
-	buf := make([]byte, len(key)+len(member)+4+len(db.indexVarBuf))
-
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+len(member)+4+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
 	buf[pos] = ZSetType
 	pos++
@@ -385,7 +432,7 @@ func (db *DB) zEncodeSetKey(key []byte, member []byte) []byte {
 }
 
 func (db *DB) zDecodeSetKey(ek []byte) ([]byte, []byte, error) {
-	pos, err := db.checkKeyIndex(ek)
+	pos, err := db.checkKey(ek)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -429,9 +476,10 @@ func (db *DB) zEncodeStopSetKey(key []byte) []byte {
 }
 
 func (db *DB) zEncodeScoreKey(key []byte, member []byte, score int64) []byte {
-	buf := make([]byte, len(key)+len(member)+13+len(db.indexVarBuf))
-
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+len(member)+13+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
 	buf[pos] = ZScoreType
 	pos++
@@ -471,7 +519,7 @@ func (db *DB) zEncodeStopScoreKey(key []byte, score int64) []byte {
 
 func (db *DB) zDecodeScoreKey(ek []byte) (key []byte, member []byte, score int64, err error) {
 	pos := 0
-	pos, err = db.checkKeyIndex(ek)
+	pos, err = db.checkKey(ek)
 	if err != nil {
 		return
 	}
@@ -583,9 +631,11 @@ func (db *DB) decodeScanKey(storeDataType byte, ek []byte) (key []byte, err erro
 // --- expire ttl ---
 
 func (db *DB) expEncodeMetaKey(dataType byte, key []byte) []byte {
-	buf := make([]byte, len(key)+2+len(db.indexVarBuf))
+	buf := make([]byte, len(key)+2+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
-	pos := copy(buf, db.indexVarBuf)
 	buf[pos] = ExpMetaType
 	pos++
 	buf[pos] = dataType
@@ -597,7 +647,7 @@ func (db *DB) expEncodeMetaKey(dataType byte, key []byte) []byte {
 }
 
 func (db *DB) expDecodeMetaKey(mk []byte) (byte, []byte, error) {
-	pos, err := db.checkKeyIndex(mk)
+	pos, err := db.checkKey(mk)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -610,9 +660,10 @@ func (db *DB) expDecodeMetaKey(mk []byte) (byte, []byte, error) {
 }
 
 func (db *DB) expEncodeTimeKey(dataType byte, key []byte, when int64) []byte {
-	buf := make([]byte, len(key)+10+len(db.indexVarBuf))
-
-	pos := copy(buf, db.indexVarBuf)
+	buf := make([]byte, len(key)+10+len(db.indexVarBuf)+len(db.store.prefixKey))
+	pos := copy(buf, db.store.prefixKey)
+	n := copy(buf[pos:], db.indexVarBuf)
+	pos += n
 
 	buf[pos] = ExpTimeType
 	pos++
@@ -629,7 +680,7 @@ func (db *DB) expEncodeTimeKey(dataType byte, key []byte, when int64) []byte {
 }
 
 func (db *DB) expDecodeTimeKey(tk []byte) (byte, []byte, int64, error) {
-	pos, err := db.checkKeyIndex(tk)
+	pos, err := db.checkKey(tk)
 	if err != nil {
 		return 0, nil, 0, err
 	}

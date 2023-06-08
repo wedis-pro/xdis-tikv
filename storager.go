@@ -12,6 +12,7 @@ import (
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/safer"
 	"github.com/weedge/xdis-tikv/v1/config"
+	tDriver "github.com/weedge/xdis-tikv/v1/driver"
 	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
@@ -37,6 +38,8 @@ type Storager struct {
 	leaderChecker *LeaderChecker
 	// gc check
 	gcChecker *GCChecker
+	// biz config prefix key for logic isolation
+	prefixKey []byte
 }
 
 func Open(opts *config.StoragerOptions) (store *Storager, err error) {
@@ -57,6 +60,8 @@ func Open(opts *config.StoragerOptions) (store *Storager, err error) {
 	if store.kvClient, err = tikv.NewClient(&opts.TiKVClient); err != nil {
 		return nil, err
 	}
+
+	store.SetPrefix(store.opts.PrefixKey)
 
 	store.check(context.Background())
 	return
@@ -177,8 +182,54 @@ func (m *Storager) checkLeaderAndGC(ctx context.Context) {
 	}, nil, os.Stderr)
 }
 
+// SetPrefix set the prefix key.
+func (m *Storager) SetPrefix(prefix string) {
+	m.prefixKey = encodePrefixKey(prefix)
+}
+
+// PrefixKey get the prefix key
+func (m *Storager) PrefixKey() []byte {
+	return m.prefixKey
+}
+
 // FlushAll will clear all data
-func (m *Storager) FlushAll(ctx context.Context) error {
-	// todo
+// if use shared dist tikv , need prefix key to logic isolation
+// use namespace/tenantId(appId/bizId);
+func (m *Storager) FlushAll(ctx context.Context) (err error) {
+	var iter tDriver.IIterator
+	iter, err = m.kvClient.GetTxnKVClient().Iter(ctx, nil, m.prefixKey, nil, 0, -1)
+	if err != nil {
+		return err
+	}
+	defer iter.Close()
+	it, ok := iter.(*tikv.RangeIter)
+	if !ok {
+		return nil
+	}
+
+	defer func() {
+		if err != nil {
+			it.GetTxn().Rollback()
+		}
+	}()
+
+	n := 0
+	for ; it.Valid(); it.Next() {
+		n++
+		if n == 10000 {
+			if err = it.GetTxn().Commit(ctx); err != nil {
+				klog.Errorf("flush all commit error: %s", err.Error())
+				return err
+			}
+			n = 0
+		}
+		it.GetTxn().Delete(it.Key())
+	}
+
+	if err = it.GetTxn().Commit(ctx); err != nil {
+		klog.Errorf("flush all commit error: %s", err.Error())
+		return err
+	}
+
 	return nil
 }

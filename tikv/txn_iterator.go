@@ -3,6 +3,7 @@ package tikv
 import (
 	"bytes"
 
+	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/xdis-tikv/v1/driver"
 )
 
@@ -16,6 +17,9 @@ type RangeIter struct {
 
 	// for iter step++ instead of limit-- when limit < 0
 	step int
+
+	// transaction tikv for w
+	txn *transaction.KVTxn
 }
 
 func (m *RangeIter) Valid() bool {
@@ -63,4 +67,8 @@ func (m *RangeIter) Offset() *RangeIter {
 	}
 
 	return m
+}
+
+func (m *RangeIter) GetTxn() *transaction.KVTxn {
+	return m.txn
 }

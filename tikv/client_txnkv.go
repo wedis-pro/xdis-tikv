@@ -249,6 +249,7 @@ func (m *TxnKVClientWrapper) Iter(ctx context.Context, txn *transaction.KVTxn, m
 		offset:    offset,
 		isReverse: false,
 		step:      0,
+		txn:       txn,
 	}
 	iter = txnIter.Offset()
 	return
@@ -273,6 +274,7 @@ func (m *TxnKVClientWrapper) ReverseIter(ctx context.Context, txn *transaction.K
 		offset:    offset,
 		isReverse: true,
 		step:      0,
+		txn:       txn,
 	}
 	iter = txnIter.Offset()
 	return

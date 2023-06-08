@@ -1,8 +1,6 @@
 package xdistikv
 
 import (
-	"encoding/binary"
-
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
 	"github.com/weedge/xdis-tikv/v1/tikv"
@@ -86,9 +84,5 @@ func (db *DB) IndexVarBuf() []byte {
 // SetIndex set the index of database.
 func (db *DB) SetIndex(index int) {
 	db.index = index
-	// the most size for varint is 10 bytes
-	buf := make([]byte, 10)
-	n := binary.PutUvarint(buf, uint64(index))
-
-	db.indexVarBuf = buf[0:n]
+	db.indexVarBuf = encodeIndex(index)
 }

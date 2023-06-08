@@ -36,8 +36,9 @@ type GCJobOptions struct {
 }
 
 type StoragerOptions struct {
-	Databases        int `mapstructure:"databases"`
-	TTLCheckInterval int `mapstructure:"ttlCheckInterval"`
+	PrefixKey        string `mapstructure:"prefixKey"`
+	Databases        int    `mapstructure:"databases"`
+	TTLCheckInterval int    `mapstructure:"ttlCheckInterval"`
 
 	TiKVClient TikvClientOptions `mapstructure:"tikvClientOpts"`
 	GCJob      GCJobOptions      `mapstructure:"gcJobOpts"`

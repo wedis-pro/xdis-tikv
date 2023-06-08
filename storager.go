@@ -32,6 +32,11 @@ type Storager struct {
 	ttlCheckerCh chan *TTLChecker
 	wg           sync.WaitGroup
 	quit         chan struct{}
+
+	// leader check
+	leaderChecker *LeaderChecker
+	// gc check
+	gcChecker *GCChecker
 }
 
 func Open(opts *config.StoragerOptions) (store *Storager, err error) {
@@ -53,6 +58,7 @@ func Open(opts *config.StoragerOptions) (store *Storager, err error) {
 		return nil, err
 	}
 
+	store.check(context.Background())
 	return
 }
 
@@ -130,10 +136,15 @@ func (m *Storager) Select(ctx context.Context, index int) (idb driver.IDB, err e
 	return
 }
 
-func (m *Storager) checkTTL() {
+// check checker job to run
+func (m *Storager) check(ctx context.Context) {
+	m.checkTTL(ctx)
+	m.checkLeaderAndGC(ctx)
+}
+
+func (m *Storager) checkTTL(ctx context.Context) {
 	m.ttlCheckers = make([]*TTLChecker, 0, config.DefaultDatabases)
 	m.ttlCheckerCh = make(chan *TTLChecker, config.DefaultDatabases)
-
 	safer.GoSafely(&m.wg, false, func() {
 		tick := time.NewTicker(time.Duration(m.opts.TTLCheckInterval) * time.Second)
 		defer tick.Stop()
@@ -142,15 +153,27 @@ func (m *Storager) checkTTL() {
 			select {
 			case <-tick.C:
 				for _, c := range m.ttlCheckers {
-					c.Run(context.Background())
+					c.Run(ctx)
 				}
 			case c := <-m.ttlCheckerCh:
 				m.ttlCheckers = append(m.ttlCheckers, c)
-				c.Run(context.Background())
+				c.Run(ctx)
 			case <-m.quit:
 				return
 			}
 		}
+	}, nil, os.Stderr)
+}
+
+func (m *Storager) checkLeaderAndGC(ctx context.Context) {
+	m.leaderChecker = NewLeaderChecker(&m.opts.LeaderJob, m.kvClient)
+	safer.GoSafely(&m.wg, false, func() {
+		m.leaderChecker.Run(ctx)
+	}, nil, os.Stderr)
+
+	m.gcChecker = NewGCChecker(&m.opts.GCJob, m.kvClient, m.leaderChecker)
+	safer.GoSafely(&m.wg, false, func() {
+		m.gcChecker.Run(ctx)
 	}, nil, os.Stderr)
 }
 

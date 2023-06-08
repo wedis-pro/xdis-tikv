@@ -2,30 +2,40 @@ package xdistikv
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/google/uuid"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
-type leaderChecker struct {
+type LeaderChecker struct {
 	opts *config.LeaderJobOptions
 
-	db   *DB
-	uuid uuid.UUID
+	kvClient *tikv.Client
+	uuid     uuid.UUID
 }
 
-func NewLeaderChecker(opts *config.LeaderJobOptions, db *DB) *leaderChecker {
-	return &leaderChecker{
-		opts: opts,
-		db:   db,
-		uuid: uuid.New(),
+var leaderCheckerOnce sync.Once
+var leaderCheckerInstance *LeaderChecker
+
+func NewLeaderChecker(opts *config.LeaderJobOptions, client *tikv.Client) *LeaderChecker {
+	if leaderCheckerInstance == nil {
+		leaderCheckerOnce.Do(func() {
+			leaderCheckerInstance = &LeaderChecker{
+				opts:     opts,
+				kvClient: client,
+				uuid:     uuid.New(),
+			}
+		})
 	}
+	return leaderCheckerInstance
 }
 
-func (m *leaderChecker) Run(ctx context.Context) {
+func (m *LeaderChecker) Run(ctx context.Context) {
 	klog.CtxInfof(ctx, "start leader checker with interval %d seconds, lease %s seconds", m.opts.LeaderCheckInterval, m.opts.LeaderLeaseDuration)
 	ticker := time.NewTicker(time.Duration(m.opts.LeaderCheckInterval) * time.Second)
 	for {
@@ -41,9 +51,9 @@ func (m *leaderChecker) Run(ctx context.Context) {
 // check leader and lease time out
 // use transaction (txn queue) try to be leader and write lease uuid and time
 // there don't need dist Lock performance optimization, if want, use CAS :)
-func (m *leaderChecker) check(ctx context.Context) {
+func (m *LeaderChecker) check(ctx context.Context) {
 	klog.CtxInfof(ctx, "check leader lease with uuid %s", m.uuid)
-	res, err := m.db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	res, err := m.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		leaderKey := jobEncodeLeaderKey()
 		val, err := txn.Get(ctx, leaderKey)
 		if err != nil {
@@ -86,13 +96,13 @@ func (m *leaderChecker) check(ctx context.Context) {
 // renewLease
 // notice: ts not from PD, but value like TSO format
 // value: uuid(36) | now(8)
-func (m *leaderChecker) renewLease(txn *transaction.KVTxn) error {
+func (m *LeaderChecker) renewLease(txn *transaction.KVTxn) error {
 	return txn.Set(jobEncodeLeaderKey(),
 		append([]byte(m.uuid.String()), PutInt64(time.Now().UTC().Unix())...))
 }
 
 // checkVal val should be in format uuid(36 bytes)+time(8 bytes)
-func (m *leaderChecker) checkVal(val []byte) ([]byte, time.Time, error) {
+func (m *LeaderChecker) checkVal(val []byte) ([]byte, time.Time, error) {
 	if val == nil || len(val) != 44 {
 		return nil, time.Time{}, ErrLeaderValSize
 	}
@@ -109,9 +119,9 @@ func (m *leaderChecker) checkVal(val []byte) ([]byte, time.Time, error) {
 
 // IsLeader
 // if check leader val format and lease not time out, is true
-func (m *leaderChecker) IsLeader(ctx context.Context) bool {
+func (m *LeaderChecker) IsLeader(ctx context.Context) bool {
 	leaderKey := jobEncodeLeaderKey()
-	val, err := m.db.kvClient.GetKVClient().Get(ctx, leaderKey)
+	val, err := m.kvClient.GetKVClient().Get(ctx, leaderKey)
 	if err != nil {
 		return false
 	}

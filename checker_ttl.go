@@ -126,6 +126,7 @@ func (c *TTLChecker) clearExpired(ctx context.Context, when, now int64) (nextWhe
 			return nextWhen, err
 		}
 	}
+	it.Close()
 
 	return
 }

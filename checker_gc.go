@@ -7,21 +7,23 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/tikv/client-go/v2/oracle"
-	"github.com/tikv/client-go/v2/tikv"
+	tikvClient "github.com/tikv/client-go/v2/tikv"
 	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/v1/tikv"
 )
 
-type gcChecker struct {
-	opts          *config.GCJobOptions
-	db            *DB
-	leaderChecker *leaderChecker
+type GCChecker struct {
+	opts     *config.GCJobOptions
+	kvClient *tikv.Client
+
+	leaderChecker *LeaderChecker
 }
 
-func NewGCChecker(opts *config.GCJobOptions, db *DB, leader *leaderChecker) *gcChecker {
+func NewGCChecker(opts *config.GCJobOptions, client *tikv.Client, leader *LeaderChecker) *GCChecker {
 	initOpts(opts)
-	return &gcChecker{
+	return &GCChecker{
 		opts:          opts,
-		db:            db,
+		kvClient:      client,
 		leaderChecker: leader,
 	}
 }
@@ -38,7 +40,7 @@ func initOpts(opts *config.GCJobOptions) {
 	}
 }
 
-func (m *gcChecker) Run(ctx context.Context) {
+func (m *GCChecker) Run(ctx context.Context) {
 
 	klog.CtxInfof(ctx, "start db gc checker with opts %+v", *m.opts)
 	ticker := time.NewTicker(time.Duration(m.opts.GCInterval) * time.Second)
@@ -55,7 +57,7 @@ func (m *gcChecker) Run(ctx context.Context) {
 				continue
 			}
 
-			lastPoint, err := Uint64(m.db.kvClient.GetKVClient().Get(ctx, jobEncodeGCPointKey()))
+			lastPoint, err := Uint64(m.kvClient.GetKVClient().Get(ctx, jobEncodeGCPointKey()))
 			if err != nil {
 				klog.Errorf("load last safe point failed, error: %s", err.Error())
 				continue
@@ -80,7 +82,7 @@ func (m *gcChecker) Run(ctx context.Context) {
 				continue
 			}
 
-			err = m.db.kvClient.GetKVClient().Put(ctx, jobEncodeGCPointKey(), PutInt64(newPoint.Unix()))
+			err = m.kvClient.GetKVClient().Put(ctx, jobEncodeGCPointKey(), PutInt64(newPoint.Unix()))
 			if err != nil {
 				klog.CtxErrorf(ctx, "save safe point failed, error: %s", err.Error())
 				continue
@@ -93,8 +95,8 @@ func (m *gcChecker) Run(ctx context.Context) {
 	}
 }
 
-func (m *gcChecker) getNewPoint(ttl time.Duration) (time.Time, error) {
-	currentTS, err := m.db.kvClient.GetTxnKVClient().KVStore.CurrentTimestamp(oracle.GlobalTxnScope)
+func (m *GCChecker) getNewPoint(ttl time.Duration) (time.Time, error) {
+	currentTS, err := m.kvClient.GetTxnKVClient().KVStore.CurrentTimestamp(oracle.GlobalTxnScope)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -109,7 +111,7 @@ func (m *gcChecker) getNewPoint(ttl time.Duration) (time.Time, error) {
 // runGc
 // resolve lock on the whole TiKV cluster.
 // notice: the range is unbounded.
-func (m *gcChecker) runGC(ctx context.Context, safePoint uint64) (err error) {
-	_, err = m.db.kvClient.GetTxnKVClient().GC(ctx, safePoint, tikv.WithConcurrency(m.opts.GCConcurrency))
+func (m *GCChecker) runGC(ctx context.Context, safePoint uint64) (err error) {
+	_, err = m.kvClient.GetTxnKVClient().GC(ctx, safePoint, tikvClient.WithConcurrency(m.opts.GCConcurrency))
 	return
 }

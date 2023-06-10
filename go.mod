@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/cloudwego/kitex v0.5.2
 	github.com/google/uuid v1.3.0
+	github.com/stretchr/testify v1.8.3
 	github.com/tikv/client-go/v2 v2.0.7
 	github.com/weedge/pkg v0.0.0-20230604100309-ee4766f9935c
 )
@@ -16,6 +17,7 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -29,11 +31,13 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20230523065550-8b641fa69bf3 // indirect
 	github.com/pingcap/log v1.1.1-0.20221110025148-ca232912c9f3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.15.1 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
 	github.com/tikv/pd/client v0.0.0-20230419105719-9e7b8e8c95fd // indirect
 	github.com/twmb/murmur3 v1.1.3 // indirect
@@ -51,6 +55,7 @@ require (
 	google.golang.org/grpc v1.54.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 //replace github.com/weedge/pkg => ../pkg

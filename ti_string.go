@@ -95,13 +95,13 @@ func (db *DBString) SetEX(ctx context.Context, key []byte, duration int64, value
 	return
 }
 
-func (db *DBString) SetNXEX(ctx context.Context, key []byte, duration int64, value []byte) error {
+func (db *DBString) SetNXEX(ctx context.Context, key []byte, duration int64, value []byte) (int64, error) {
 	if err := checkKeySize(key); err != nil {
-		return err
+		return 0, err
 	} else if err := checkValueSize(value); err != nil {
-		return err
+		return 0, err
 	} else if duration <= 0 {
-		return ErrExpireValue
+		return 0, ErrExpireValue
 	}
 
 	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
@@ -122,17 +122,20 @@ func (db *DBString) SetNXEX(ctx context.Context, key []byte, duration int64, val
 		}
 		return nil, nil
 	})
+	if err != nil {
+		return 0, err
+	}
 
-	return err
+	return 1, nil
 }
 
-func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, value []byte) error {
+func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, value []byte) (int64, error) {
 	if err := checkKeySize(key); err != nil {
-		return err
+		return 0, err
 	} else if err := checkValueSize(value); err != nil {
-		return err
+		return 0, err
 	} else if duration <= 0 {
-		return ErrExpireValue
+		return 0, ErrExpireValue
 	}
 
 	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
@@ -153,8 +156,11 @@ func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, val
 		}
 		return nil, nil
 	})
+	if err != nil {
+		return 0, err
+	}
 
-	return err
+	return 1, nil
 }
 
 func (db *DBString) Get(ctx context.Context, key []byte) (val []byte, err error) {

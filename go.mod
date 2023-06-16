@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.3
 	github.com/tikv/client-go/v2 v2.0.7
-	github.com/weedge/pkg v0.0.0-20230604100309-ee4766f9935c
+	github.com/weedge/pkg v0.0.0-20230616035038-f6c50b5a2707
 )
 
 require (

@@ -54,9 +54,6 @@ func (db *DB) flushType(ctx context.Context, txn *transaction.KVTxn, dataType by
 	case ZSetType:
 		deleteFunc = db.zset.delete
 		metaDataType = ZSizeType
-	case BitmapType:
-		deleteFunc = db.bitmap.delete
-		metaDataType = BitmapType
 	default:
 		return 0, fmt.Errorf("invalid data type: %s", TypeName[dataType])
 	}

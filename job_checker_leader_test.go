@@ -3,6 +3,7 @@ package xdistikv
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/weedge/xdis-tikv/config"
@@ -50,15 +51,23 @@ func TestLeaderChecker_concurrency_check(t *testing.T) {
 		arrChecker[i] = leaderChecker
 		arrStorager[i] = store
 	}
+
+	leaderCn := int64(0)
 	wg := &sync.WaitGroup{}
 	wg.Add(clientCn)
 	for i := 0; i < clientCn; i++ {
 		go func(i int) {
 			defer wg.Done()
-			arrChecker[i].check(ctx)
+			isLeader := arrChecker[i].check(ctx)
+			if isLeader {
+				atomic.AddInt64(&leaderCn, 1)
+			}
 		}(i)
 	}
 	wg.Wait()
+	if leaderCn != 1 {
+		t.Errorf("leader not only leaderCn %d", leaderCn)
+	}
 
 	for i := 0; i < clientCn; i++ {
 		arrChecker[i].free(ctx)

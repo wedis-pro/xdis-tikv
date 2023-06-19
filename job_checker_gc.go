@@ -43,7 +43,6 @@ func initOpts(opts *config.GCJobOptions) {
 }
 
 func (m *GCChecker) Run(ctx context.Context) {
-
 	klog.CtxInfof(ctx, "start db gc checker with opts %+v", *m.opts)
 	ticker := time.NewTicker(time.Duration(m.opts.GCInterval) * time.Second)
 	for {

@@ -58,27 +58,29 @@ func (m *LeaderChecker) free(ctx context.Context) {
 	leaderKey := m.store.jobEncodeLeaderKey()
 	_, err := m.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		_, err := txn.Get(ctx, leaderKey)
-		if err != nil && !tikverr.IsErrNotFound(err) {
+		if err != nil {
 			return nil, err
-		}
-		if err != nil && tikverr.IsErrNotFound(err) {
-			return nil, nil
 		}
 
 		err = txn.Delete(leaderKey)
 		return nil, err
 	}, tikv.WithAsyncCommit(true), tikv.WithTryOnePcCommit(true))
-	if err != nil {
+	if err != nil && !tikverr.IsErrNotFound(err) {
 		klog.CtxErrorf(ctx, "free key %s failed, error: %s", leaderKey, err.Error())
 		return
 	}
+	if err != nil && tikverr.IsErrNotFound(err) {
+		klog.CtxWarnf(ctx, "free key %s not found", leaderKey)
+		return
+	}
+
 	klog.CtxInfof(ctx, "free key %s ok", leaderKey)
 }
 
 // check leader and lease time out
 // use transaction (txn queue) try to be leader and write lease uuid and time
 // there don't need dist Lock performance optimization, if want, use CAS :)
-func (m *LeaderChecker) check(ctx context.Context) {
+func (m *LeaderChecker) check(ctx context.Context) bool {
 	klog.CtxInfof(ctx, "check leader lease with uuid %s", m.uuid)
 	res, err := m.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		leaderKey := m.store.jobEncodeLeaderKey()
@@ -111,13 +113,14 @@ func (m *LeaderChecker) check(ctx context.Context) {
 	})
 	if err != nil {
 		klog.CtxErrorf(ctx, "check leader and renew lease failed, error: %s", err.Error())
-		return
+		return false
 	}
 	if res != nil && res.(bool) {
 		klog.CtxInfof(ctx, "[job leader] I am leader with new release")
-		return
+		return true
 	}
 	klog.CtxInfof(ctx, "[job follower] leader already exists in lease duration")
+	return false
 }
 
 // renewLease

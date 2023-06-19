@@ -15,16 +15,18 @@ import (
 type GCChecker struct {
 	opts     *config.GCJobOptions
 	kvClient *tikv.Client
+	store    *Storager
 
 	leaderChecker *LeaderChecker
 }
 
-func NewGCChecker(opts *config.GCJobOptions, client *tikv.Client, leader *LeaderChecker) *GCChecker {
+func NewGCChecker(opts *config.GCJobOptions, client *tikv.Client, leader *LeaderChecker, store *Storager) *GCChecker {
 	initOpts(opts)
 	return &GCChecker{
 		opts:          opts,
 		kvClient:      client,
 		leaderChecker: leader,
+		store:         store,
 	}
 }
 
@@ -57,7 +59,7 @@ func (m *GCChecker) Run(ctx context.Context) {
 				continue
 			}
 
-			lastPoint, err := Uint64(m.kvClient.GetKVClient().Get(ctx, jobEncodeGCPointKey()))
+			lastPoint, err := Uint64(m.kvClient.GetKVClient().Get(ctx, m.store.jobEncodeGCPointKey()))
 			if err != nil {
 				klog.Errorf("load last safe point failed, error: %s", err.Error())
 				continue
@@ -82,7 +84,7 @@ func (m *GCChecker) Run(ctx context.Context) {
 				continue
 			}
 
-			err = m.kvClient.GetKVClient().Put(ctx, jobEncodeGCPointKey(), PutInt64(newPoint.Unix()))
+			err = m.kvClient.GetKVClient().Put(ctx, m.store.jobEncodeGCPointKey(), PutInt64(newPoint.Unix()))
 			if err != nil {
 				klog.CtxErrorf(ctx, "save safe point failed, error: %s", err.Error())
 				continue

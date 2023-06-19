@@ -709,15 +709,6 @@ func (db *DB) expDecodeTimeKey(tk []byte) (byte, []byte, int64, error) {
 	return tk[pos+9], tk[pos+10:], int64(binary.BigEndian.Uint64(tk[pos+1:])), nil
 }
 
-// --- job key ----
-func jobEncodeLeaderKey() []byte {
-	return PutUint16(LeaderPreKey)
-}
-
-func jobEncodeGCPointKey() []byte {
-	return PutUint16(GCPreKey)
-}
-
 //--- ext binary number ---
 
 // PutUint16 puts the u16 integer.

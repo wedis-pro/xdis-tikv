@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.3
 	github.com/tikv/client-go/v2 v2.0.7
-	github.com/weedge/pkg v0.0.0-20230616035038-f6c50b5a2707
+	github.com/weedge/pkg v0.0.0-20230619110950-673148e3b843
 )
 
 require (
@@ -28,7 +28,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pingcap/errors v0.11.5-0.20211224045212-9687c2b0f87c // indirect
 	github.com/pingcap/failpoint v0.0.0-20220801062533-2eaa32854a6c // indirect
-	github.com/pingcap/kvproto v0.0.0-20230523065550-8b641fa69bf3 // indirect
+	github.com/pingcap/kvproto v0.0.0-20230530111525-e4919c190b46 // indirect
 	github.com/pingcap/log v1.1.1-0.20221110025148-ca232912c9f3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -39,7 +39,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/pd/client v0.0.0-20230419105719-9e7b8e8c95fd // indirect
+	github.com/tikv/pd/client v0.0.0-20230608061541-026ddf08a351 // indirect
 	github.com/twmb/murmur3 v1.1.3 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
@@ -59,4 +59,5 @@ require (
 )
 
 //replace github.com/weedge/pkg => ../pkg
-replace github.com/tikv/client-go/v2 => github.com/weedge/client-go/v2 v2.0.0-20230608065957-83e9e4715f23
+
+replace github.com/tikv/client-go/v2 => github.com/weedge/client-go/v2 v2.0.0-20230619072005-f6f06b0b2c47

@@ -219,3 +219,7 @@ const (
 	LeaderPreKey = 255
 	GCPreKey     = 256
 )
+
+const (
+	RegisterStoragerName = "xdis-tikv"
+)

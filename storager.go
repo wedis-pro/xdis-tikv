@@ -28,11 +28,14 @@ type Storager struct {
 	// dbs map lock for get and set map[int]*DB
 	dbLock sync.Mutex
 
+	// checker wg
+	wg sync.WaitGroup
+	// ctx cancel func
+	cf context.CancelFunc
+
 	// ttl check
 	ttlCheckers  []*TTLChecker
 	ttlCheckerCh chan *TTLChecker
-	wg           sync.WaitGroup
-	quit         chan struct{}
 
 	// leader check
 	leaderChecker *LeaderChecker
@@ -42,29 +45,37 @@ type Storager struct {
 	prefixKey []byte
 }
 
-func Open(opts *config.StoragerOptions) (store *Storager, err error) {
+func New(opts *config.StoragerOptions) (store *Storager) {
 	store = &Storager{}
 	store.InitOpts(opts)
+	store.SetPrefix(store.opts.PrefixKey)
+	return
+}
 
-	defer func(s *Storager) {
+func (store *Storager) Open(ctx context.Context) (err error) {
+	opts := store.opts
+	defer func() {
 		if err != nil {
-			if e := s.Close(); e != nil {
+			if e := store.Close(); e != nil {
 				klog.Errorf("close store err: %s", e.Error())
 			}
 		}
-	}(store)
+	}()
 
 	store.dbs = make(map[int]*DB, opts.Databases)
-	store.quit = make(chan struct{})
-
 	if store.kvClient, err = tikv.NewClient(&opts.TiKVClient); err != nil {
-		return nil, err
+		return
 	}
 
-	store.SetPrefix(store.opts.PrefixKey)
+	ctx, cancel := context.WithCancel(ctx)
+	store.cf = cancel
+	store.check(ctx)
 
-	store.check(context.Background())
 	return
+}
+
+func (m *Storager) Name() string {
+	return RegisterStoragerName
 }
 
 func (m *Storager) InitOpts(opts *config.StoragerOptions) {
@@ -86,8 +97,8 @@ func (m *Storager) InitOpts(opts *config.StoragerOptions) {
 
 // Close close tikv client
 func (m *Storager) Close() (err error) {
-	if m.quit != nil {
-		close(m.quit)
+	if m.cf != nil {
+		m.cf()
 	}
 	m.wg.Wait()
 
@@ -163,7 +174,7 @@ func (m *Storager) checkTTL(ctx context.Context) {
 			case c := <-m.ttlCheckerCh:
 				m.ttlCheckers = append(m.ttlCheckers, c)
 				c.Run(ctx)
-			case <-m.quit:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -171,12 +182,12 @@ func (m *Storager) checkTTL(ctx context.Context) {
 }
 
 func (m *Storager) checkLeaderAndGC(ctx context.Context) {
-	m.leaderChecker = NewLeaderChecker(&m.opts.LeaderJob, m.kvClient)
+	m.leaderChecker = NewLeaderChecker(&m.opts.LeaderJob, m.kvClient, m)
 	safer.GoSafely(&m.wg, false, func() {
 		m.leaderChecker.Run(ctx)
 	}, nil, os.Stderr)
 
-	m.gcChecker = NewGCChecker(&m.opts.GCJob, m.kvClient, m.leaderChecker)
+	m.gcChecker = NewGCChecker(&m.opts.GCJob, m.kvClient, m.leaderChecker, m)
 	safer.GoSafely(&m.wg, false, func() {
 		m.gcChecker.Run(ctx)
 	}, nil, os.Stderr)

@@ -16,7 +16,7 @@ type TikvClientOptions struct {
 	// txn conf
 	UseAsyncCommit    bool `mapstructure:"useAsyncCommit"`
 	TryOnePcCommit    bool `mapstructure:"tryOnePcCommit"`
-	UsePessimisticTxn bool `mapstructure:"useAsyncCommit"`
+	UsePessimisticTxn bool `mapstructure:"usePessimisticTxn"`
 	//TxnRetryCn int `mapstructure:"txRetryCn"`
 	//TxnRegionBackoffDelayMs      int  `mapstructure:"txnRegionBackoffDelayMs"`
 	//TxnRegionBackoffDelayAttemps int  `mapstructure:"txnRegionBackoffDelayAttemps"`

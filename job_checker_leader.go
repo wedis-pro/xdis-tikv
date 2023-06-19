@@ -25,15 +25,11 @@ var leaderCheckerOnce sync.Once
 var leaderCheckerInstance *LeaderChecker
 
 func NewLeaderChecker(opts *config.LeaderJobOptions, client *tikv.Client, store *Storager) *LeaderChecker {
-	if leaderCheckerInstance == nil {
-		leaderCheckerOnce.Do(func() {
-			leaderCheckerInstance = &LeaderChecker{
-				opts:     opts,
-				kvClient: client,
-				uuid:     uuid.New(),
-				store:    store,
-			}
-		})
+	leaderCheckerInstance = &LeaderChecker{
+		opts:     opts,
+		kvClient: client,
+		uuid:     uuid.New(),
+		store:    store,
 	}
 	return leaderCheckerInstance
 }

@@ -69,6 +69,17 @@ func TestLeaderChecker_concurrency_check(t *testing.T) {
 		t.Errorf("leader not only leaderCn %d", leaderCn)
 	}
 
+	leaderCn = 0
+	for i := 0; i < clientCn; i++ {
+		isLeader := arrChecker[i].IsLeader(ctx)
+		if isLeader {
+			leaderCn++
+		}
+	}
+	if leaderCn != 1 {
+		t.Errorf("leader not only leaderCn %d", leaderCn)
+	}
+
 	for i := 0; i < clientCn; i++ {
 		arrChecker[i].free(ctx)
 		err = arrStorager[i].Close()

@@ -47,9 +47,11 @@ func (m *Client) Close() error {
 	errs := []error{}
 	if m.txnKV != nil {
 		errs = append(errs, m.txnKV.Close())
+		m.txnKV = nil
 	}
 	if m.rawKV != nil {
 		errs = append(errs, m.rawKV.Close())
+		m.rawKV = nil
 	}
 
 	strErrs := []string{}

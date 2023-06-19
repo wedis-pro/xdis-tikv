@@ -28,6 +28,9 @@ func NewRawKVClient(opts *config.TikvClientOptions) (*RawKVClientWrapper, error)
 	return cli, nil
 }
 func (m *RawKVClientWrapper) Close() error {
+	if m.client == nil {
+		return nil
+	}
 	return m.client.Close()
 }
 

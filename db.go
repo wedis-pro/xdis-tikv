@@ -2,7 +2,6 @@ package xdistikv
 
 import (
 	"github.com/weedge/pkg/driver"
-	"github.com/weedge/pkg/utils"
 	"github.com/weedge/xdis-tikv/tikv"
 )
 
@@ -64,7 +63,7 @@ func (m *DB) DBBitmap() driver.IBitmapCmd {
 }
 
 func (m *DB) Close() (err error) {
-	if utils.IsNil(m.kvClient) {
+	if m.kvClient == nil {
 		return
 	}
 

@@ -35,6 +35,9 @@ func NewTxKVClient(opts *config.TikvClientOptions) (*TxnKVClientWrapper, error) 
 }
 
 func (m *TxnKVClientWrapper) Close() error {
+	if m.Client == nil {
+		return nil
+	}
 	return m.Client.Close()
 }
 

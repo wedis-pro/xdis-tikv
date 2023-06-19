@@ -24,8 +24,9 @@ type TTLChecker struct {
 
 func NewTTLChecker(db *DB) *TTLChecker {
 	c := &TTLChecker{
-		db: db,
-		nc: 0,
+		db:  db,
+		nc:  0,
+		cbs: make([]onExpired, maxDataType),
 	}
 
 	// todo: register data type with on expired event

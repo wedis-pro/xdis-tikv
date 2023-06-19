@@ -3,7 +3,7 @@ package xdistikv
 import (
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 // DB core sturct

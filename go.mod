@@ -1,4 +1,4 @@
-module github.com/weedge/xdis-tikv/v1
+module github.com/weedge/xdis-tikv
 
 go 1.19
 

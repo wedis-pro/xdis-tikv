@@ -10,7 +10,7 @@ import (
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
-	tDriver "github.com/weedge/xdis-tikv/v1/driver"
+	tDriver "github.com/weedge/xdis-tikv/driver"
 )
 
 type DBZSet struct {

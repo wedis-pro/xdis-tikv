@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/weedge/xdis-tikv/v1/config"
-	"github.com/weedge/xdis-tikv/v1/driver"
+	"github.com/weedge/xdis-tikv/config"
+	"github.com/weedge/xdis-tikv/driver"
 )
 
 type Client struct {

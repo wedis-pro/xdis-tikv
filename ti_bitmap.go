@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type DBBitmap struct {

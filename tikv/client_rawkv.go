@@ -8,7 +8,7 @@ import (
 
 	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/weedge/pkg/utils"
-	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/config"
 )
 
 type RawKVClientWrapper struct {

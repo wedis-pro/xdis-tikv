@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/weedge/pkg/utils"
-	"github.com/weedge/xdis-tikv/v1/driver"
+	"github.com/weedge/xdis-tikv/driver"
 )
 
 func (db *DB) scanGeneric(ctx context.Context, storeDataType byte, key []byte, count int,

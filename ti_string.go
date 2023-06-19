@@ -7,7 +7,7 @@ import (
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/driver"
 	openkvdriver "github.com/weedge/pkg/driver/openkv"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type DBString struct {

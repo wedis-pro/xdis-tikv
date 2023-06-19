@@ -8,8 +8,8 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/google/uuid"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"github.com/weedge/xdis-tikv/v1/config"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/config"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type LeaderChecker struct {

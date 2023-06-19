@@ -9,8 +9,8 @@ import (
 	"github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/utils"
-	"github.com/weedge/xdis-tikv/v1/config"
-	"github.com/weedge/xdis-tikv/v1/driver"
+	"github.com/weedge/xdis-tikv/config"
+	"github.com/weedge/xdis-tikv/driver"
 )
 
 type TxnKVClientWrapper struct {

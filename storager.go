@@ -11,9 +11,9 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/safer"
-	"github.com/weedge/xdis-tikv/v1/config"
-	tDriver "github.com/weedge/xdis-tikv/v1/driver"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/config"
+	tDriver "github.com/weedge/xdis-tikv/driver"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 // Storager core store struct for server use like redis

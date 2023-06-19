@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"github.com/weedge/xdis-tikv/v1/driver"
+	"github.com/weedge/xdis-tikv/driver"
 )
 
 type RangeIter struct {

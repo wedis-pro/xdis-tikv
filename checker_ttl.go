@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"github.com/weedge/xdis-tikv/v1/config"
+	"github.com/weedge/xdis-tikv/config"
 )
 
 type onExpired func(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error)

@@ -8,8 +8,8 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/tikv/client-go/v2/oracle"
 	tikvClient "github.com/tikv/client-go/v2/tikv"
-	"github.com/weedge/xdis-tikv/v1/config"
-	"github.com/weedge/xdis-tikv/v1/tikv"
+	"github.com/weedge/xdis-tikv/config"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type GCChecker struct {

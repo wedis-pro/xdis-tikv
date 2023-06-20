@@ -57,8 +57,8 @@ func DefaultTikvClientOptions() *TikvClientOptions {
 
 func DefaultStoragerOptions() *StoragerOptions {
 	return &StoragerOptions{
-		Databases:        16,
-		TTLCheckInterval: 10,
+		Databases:        DefaultDatabases,
+		TTLCheckInterval: DefaultTTLCheckInterval,
 		TiKVClient:       *DefaultTikvClientOptions(),
 		GCJob:            *DefaultGCJobOptions(),
 		LeaderJob:        *DefaultLeaderJobOptions(),

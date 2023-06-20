@@ -26,17 +26,20 @@ func (db *DB) expireAt(t *transaction.KVTxn, dataType byte, key []byte, when int
 
 func (db *DB) ttl(ctx context.Context, dataType byte, key []byte) (t int64, err error) {
 	mk := db.expEncodeMetaKey(dataType, key)
-
-	if t, err = Int64(db.kvClient.GetKVClient().Get(ctx, mk)); err != nil || t == 0 {
+	t, err = Int64(db.kvClient.GetKVClient().Get(ctx, mk))
+	if err != nil {
 		t = -1
-	} else {
-		t -= time.Now().Unix()
-		if t <= 0 {
-			t = -1
-		}
+		return
+	}
+	t -= time.Now().Unix()
+	if t == 0 {
+		t = -2
+	}
+	if t < 0 {
+		t = -1
 	}
 
-	return t, err
+	return
 }
 
 func (db *DB) rmExpire(ctx context.Context, t *transaction.KVTxn, dataType byte, key []byte) (int64, error) {

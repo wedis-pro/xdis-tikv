@@ -74,7 +74,7 @@ func (db *DBSet) SAdd(ctx context.Context, key []byte, args ...[]byte) (int64, e
 				num++
 			}
 
-			if err := txn.Set(ek, nil); err != nil {
+			if err := txn.Set(ek, args[i]); err != nil {
 				return 0, err
 			}
 		}
@@ -518,28 +518,32 @@ func (db *DBSet) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 		}
 	}
 
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		var nums int64 = 0
 		for _, key := range keys {
 			if err := checkKeySize(key); err != nil {
 				return 0, err
 			}
 
-			_, err := db.delete(ctx, txn, key)
+			n, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
+			}
+			if n > 0 {
+				nums++
 			}
 			_, err = db.rmExpire(ctx, txn, SetType, key)
 			if err != nil {
 				return 0, err
 			}
 		}
-		return int64(len(keys)), nil
+		return nums, nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	return int64(len(keys)), nil
+	return res.(int64), nil
 }
 
 func (db *DBSet) Exists(ctx context.Context, key []byte) (int64, error) {
@@ -590,6 +594,15 @@ func (db *DBSet) ExpireAt(ctx context.Context, key []byte, when int64) (int64, e
 func (db *DBSet) TTL(ctx context.Context, key []byte) (int64, error) {
 	if err := checkKeySize(key); err != nil {
 		return -1, err
+	}
+
+	sk := db.sEncodeSizeKey(key)
+	v, err := db.kvClient.GetKVClient().Get(ctx, sk)
+	if err != nil {
+		return -1, err
+	}
+	if v == nil {
+		return -2, nil
 	}
 
 	return db.ttl(ctx, SetType, key)

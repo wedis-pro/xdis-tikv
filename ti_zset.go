@@ -783,19 +783,24 @@ func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 		}
 	}
 
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		var nums int64 = 0
 		for _, key := range keys {
-			if _, err := db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1); err != nil {
+			n, err := db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1)
+			if err != nil {
 				return 0, err
 			}
+			if n > 0 {
+				nums++
+			}
 		}
-		return int64(len(keys)), nil
+		return nums, nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	return int64(len(keys)), nil
+	return res.(int64), nil
 }
 
 func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error) {
@@ -846,6 +851,15 @@ func (db *DBZSet) ExpireAt(ctx context.Context, key []byte, when int64) (int64, 
 func (db *DBZSet) TTL(ctx context.Context, key []byte) (int64, error) {
 	if err := checkKeySize(key); err != nil {
 		return -1, err
+	}
+
+	sk := db.zEncodeSizeKey(key)
+	v, err := db.kvClient.GetKVClient().Get(ctx, sk)
+	if err != nil {
+		return -1, err
+	}
+	if v == nil {
+		return -2, nil
 	}
 
 	return db.ttl(ctx, ZSetType, key)

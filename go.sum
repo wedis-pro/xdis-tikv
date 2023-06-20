@@ -256,8 +256,8 @@ github.com/tikv/pd/client v0.0.0-20230608061541-026ddf08a351 h1:GZdnq41Gs/Zxz0Ne
 github.com/tikv/pd/client v0.0.0-20230608061541-026ddf08a351/go.mod h1:YmNkj9UT8IjwFov9k3oquH0UgIUHniUaQT3jXKgZYbM=
 github.com/twmb/murmur3 v1.1.3 h1:D83U0XYKcHRYwYIpBKf3Pks91Z0Byda/9SJ8B6EMRcA=
 github.com/twmb/murmur3 v1.1.3/go.mod h1:Qq/R7NUyOfr65zD+6Q5IHKsJLwP7exErjN6lyyq3OSQ=
-github.com/weedge/client-go/v2 v2.0.0-20230620042233-85c65998e04e h1:lnJEgA4vFMzf3j38FcRsHXz8iw24B4nRYeFugxe6JsM=
-github.com/weedge/client-go/v2 v2.0.0-20230620042233-85c65998e04e/go.mod h1:4KkKqjJgKlvvWMyNqdnAlYFfV4QjEj1fEb5Hb/FoT88=
+github.com/weedge/client-go/v2 v2.0.0-20230620065740-704eb319bf58 h1:gak8fc8GGT4v/PoFIN/AS9xiQ4xuqT2TUlJPGhQwPwE=
+github.com/weedge/client-go/v2 v2.0.0-20230620065740-704eb319bf58/go.mod h1:4KkKqjJgKlvvWMyNqdnAlYFfV4QjEj1fEb5Hb/FoT88=
 github.com/weedge/pkg v0.0.0-20230619110950-673148e3b843 h1:rlojBBrbVuvZZB1E0tFU2iS9oSk7Mc7wGKC6Ad6ZYSM=
 github.com/weedge/pkg v0.0.0-20230619110950-673148e3b843/go.mod h1:K/SeqBpX8GSebm2av2h/xfsw1+PzdHRnL8HVQsY4o9w=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

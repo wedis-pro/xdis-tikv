@@ -118,48 +118,49 @@ var TypeName = map[byte]string{
 var (
 	ErrCmdNotSupport = errors.New("ERR cmd not supported")
 
-	ErrIntNumber   = errors.New("invalid integer")
-	ErrKeySize     = errors.New("invalid key size")
-	ErrValueSize   = errors.New("invalid value size")
-	ErrExpireValue = errors.New("invalid expire value")
+	ErrIntNumber   = errors.New("ERR invalid integer")
+	ErrKeySize     = errors.New("ERR invalid key size")
+	ErrValueSize   = errors.New("ERR invalid value size")
+	ErrExpireValue = errors.New("ERR invalid expire value")
 
-	ErrStringKey = errors.New("invalid encode string key")
+	ErrStringKey = errors.New("ERR invalid encode string key")
 
-	ErrLMetaKey  = errors.New("invalid lmeta key")
-	ErrListKey   = errors.New("invalid list key")
-	ErrListSeq   = errors.New("invalid list sequence, overflow")
-	ErrListIndex = errors.New("invalid list index")
+	ErrLMetaKey  = errors.New("ERR invalid lmeta key")
+	ErrListKey   = errors.New("ERR invalid list key")
+	ErrListSeq   = errors.New("ERR invalid list sequence, overflow")
+	ErrListIndex = errors.New("ERR invalid list index")
 
-	ErrHashKey       = errors.New("invalid hash key")
-	ErrHSizeKey      = errors.New("invalid hsize key")
-	ErrHashFieldSize = errors.New("invalid hash field size")
+	ErrHashKey       = errors.New("ERR invalid hash key")
+	ErrHashIntVal    = errors.New("ERR hash value is not an integer")
+	ErrHSizeKey      = errors.New("ERR invalid hsize key")
+	ErrHashFieldSize = errors.New("ERR invalid hash field size")
 
-	ErrSetKey        = errors.New("invalid set key")
-	ErrSSizeKey      = errors.New("invalid ssize key")
-	ErrSetMemberSize = errors.New("invalid set member size")
+	ErrSetKey        = errors.New("ERR invalid set key")
+	ErrSSizeKey      = errors.New("ERR invalid ssize key")
+	ErrSetMemberSize = errors.New("ERR invalid set member size")
 
-	ErrZSizeKey         = errors.New("invalid zsize key")
-	ErrZSetKey          = errors.New("invalid zset key")
-	ErrZScoreKey        = errors.New("invalid zscore key")
-	ErrScoreOverflow    = errors.New("zset score overflow")
-	ErrInvalidAggregate = errors.New("invalid aggregate")
-	ErrInvalidWeightNum = errors.New("invalid weight number")
-	ErrInvalidSrcKeyNum = errors.New("invalid src key number")
-	ErrZSetMemberSize   = errors.New("invalid zset member size")
+	ErrZSizeKey         = errors.New("ERR invalid zsize key")
+	ErrZSetKey          = errors.New("ERR invalid zset key")
+	ErrZScoreKey        = errors.New("ERR invalid zscore key")
+	ErrScoreOverflow    = errors.New("ERR zset score overflow")
+	ErrInvalidAggregate = errors.New("ERR invalid aggregate")
+	ErrInvalidWeightNum = errors.New("ERR invalid weight number")
+	ErrInvalidSrcKeyNum = errors.New("ERR invalid src key number")
+	ErrZSetMemberSize   = errors.New("ERR invalid zset member size")
 
-	ErrExpMetaKey = errors.New("invalid expire meta key")
-	ErrExpTimeKey = errors.New("invalid expire time key")
+	ErrExpMetaKey = errors.New("ERR invalid expire meta key")
+	ErrExpTimeKey = errors.New("ERR invalid expire time key")
 
-	ErrDataType = errors.New("error data type")
-	ErrMetaKey  = errors.New("error meta key")
+	ErrDataType = errors.New("ERR error data type")
+	ErrMetaKey  = errors.New("ERR error meta key")
 
-	ErrBitmapKey = errors.New("invalid encode bitmap key")
+	ErrBitmapKey = errors.New("ERR invalid encode bitmap key")
 
 	// For different common errors
-	ErrScoreMiss = errors.New("zset score miss")
+	ErrScoreMiss = errors.New("ERR zset score miss")
 
 	// for job err
-	ErrLeaderValSize = errors.New("invalid leader checker job val size")
+	ErrLeaderValSize = errors.New("ERR invalid leader checker job val size")
 )
 
 // For list op

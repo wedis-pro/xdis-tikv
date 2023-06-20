@@ -5,6 +5,7 @@ ensure:
 1. for dist kv store key codec, in order to Minimize interaction time.
 2. ~~support prefix namespace/tenantId(appId/bizId) logic isolation.~~
 3. key codec add slot, in order to concurrency ttl/gc checker 
+4. ttl checker deleterange
 
 optional:
 1. add locker feature by using tikv

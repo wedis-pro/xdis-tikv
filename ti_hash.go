@@ -205,7 +205,7 @@ func (db *DBHash) HIncrBy(ctx context.Context, key []byte, field []byte, delta i
 		ek := db.hEncodeHashKey(key, field)
 		n, err := utils.StrInt64(txn.Get(ctx, ek))
 		if err != nil {
-			return 0, err
+			return 0, ErrHashIntVal
 		}
 
 		n += delta
@@ -338,28 +338,32 @@ func (db *DBHash) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 		}
 	}
 
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		var nums int64 = 0
 		for _, key := range keys {
 			if err := checkKeySize(key); err != nil {
 				return 0, err
 			}
 
-			_, err := db.delete(ctx, txn, key)
+			n, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
+			}
+			if n > 0 {
+				nums++
 			}
 			_, err = db.rmExpire(ctx, txn, HashType, key)
 			if err != nil {
 				return 0, err
 			}
 		}
-		return int64(len(keys)), nil
+		return nums, nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	return int64(len(keys)), nil
+	return res.(int64), nil
 }
 
 func (db *DBHash) Exists(ctx context.Context, key []byte) (int64, error) {
@@ -378,7 +382,7 @@ func (db *DBHash) hExpireAt(ctx context.Context, key []byte, when int64) (int64,
 	if err := checkKeySize(key); err != nil {
 		return 0, err
 	}
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		if hlen, err := db.HLen(ctx, key); err != nil || hlen == 0 {
 			return 0, err
 		}
@@ -393,7 +397,7 @@ func (db *DBHash) hExpireAt(ctx context.Context, key []byte, when int64) (int64,
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBHash) Expire(ctx context.Context, key []byte, duration int64) (int64, error) {
@@ -415,6 +419,15 @@ func (db *DBHash) ExpireAt(ctx context.Context, key []byte, when int64) (int64, 
 func (db *DBHash) TTL(ctx context.Context, key []byte) (int64, error) {
 	if err := checkKeySize(key); err != nil {
 		return -1, err
+	}
+
+	sk := db.hEncodeSizeKey(key)
+	v, err := db.kvClient.GetKVClient().Get(ctx, sk)
+	if err != nil {
+		return -1, err
+	}
+	if v == nil {
+		return -2, nil
 	}
 
 	return db.ttl(ctx, HashType, key)

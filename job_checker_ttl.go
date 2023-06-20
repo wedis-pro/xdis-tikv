@@ -54,18 +54,16 @@ func (c *TTLChecker) setNextCheckTime(when int64, force bool) {
 }
 
 func (c *TTLChecker) Run(ctx context.Context) {
+	//klog.CtxDebugf(ctx, "ttl checker run")
 	now := time.Now().Unix()
-
 	c.Lock()
 	when := c.nc
 	c.Unlock()
-
 	if now < when {
 		return
 	}
 
 	when = now + config.MaxTTLCheckInterval
-
 	newWhen, err := c.clearExpired(ctx, when, now)
 	if err != nil {
 		klog.CtxErrorf(ctx, "clearExpired err %s", err.Error())
@@ -83,6 +81,7 @@ func (c *TTLChecker) clearExpired(ctx context.Context, when, now int64) (nextWhe
 	if err != nil {
 		return when, err
 	}
+	removeCn := 0
 	for ; it.Valid(); it.Next() {
 		tk := it.Key()
 		mk := it.Value()
@@ -125,6 +124,10 @@ func (c *TTLChecker) clearExpired(ctx context.Context, when, now int64) (nextWhe
 		if err != nil {
 			return nextWhen, err
 		}
+		removeCn++
+	}
+	if removeCn > 0 {
+		klog.CtxDebugf(ctx, "clearExpired [%s %s) cn: %d", minKey, maxKey, removeCn)
 	}
 	it.Close()
 

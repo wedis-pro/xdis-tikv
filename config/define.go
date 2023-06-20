@@ -3,6 +3,6 @@ package config
 const (
 	DefaultDatabases = 16
 
-	DefaultTTLCheckInterval = 10
-	MaxTTLCheckInterval     = 3600
+	DefaultTTLCheckInterval = 3
+	MaxTTLCheckInterval     = 600
 )

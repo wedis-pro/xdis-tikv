@@ -2,7 +2,6 @@ package xdistikv
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -21,17 +20,16 @@ type LeaderChecker struct {
 	uuid     uuid.UUID
 }
 
-var leaderCheckerOnce sync.Once
-var leaderCheckerInstance *LeaderChecker
+// var leaderCheckerOnce sync.Once
+// var leaderCheckerInstance *LeaderChecker
 
 func NewLeaderChecker(opts *config.LeaderJobOptions, client *tikv.Client, store *Storager) *LeaderChecker {
-	leaderCheckerInstance = &LeaderChecker{
+	return &LeaderChecker{
 		opts:     opts,
 		kvClient: client,
 		uuid:     uuid.New(),
 		store:    store,
 	}
-	return leaderCheckerInstance
 }
 
 func (m *LeaderChecker) Run(ctx context.Context) {
@@ -43,7 +41,8 @@ func (m *LeaderChecker) Run(ctx context.Context) {
 		case <-ticker.C:
 			m.check(ctx)
 		case <-ctx.Done():
-			m.free(ctx)
+			// context ctx canceled, need new ctx
+			m.free(context.Background())
 			return
 		}
 	}

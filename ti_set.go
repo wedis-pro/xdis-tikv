@@ -74,7 +74,7 @@ func (db *DBSet) SAdd(ctx context.Context, key []byte, args ...[]byte) (int64, e
 				num++
 			}
 
-			if err := txn.Set(ek, args[i]); err != nil {
+			if err := txn.Set(ek, EmptySetVal); err != nil {
 				return 0, err
 			}
 		}
@@ -162,12 +162,11 @@ func (db *DBSet) sDiffGeneric(ctx context.Context, txn *transaction.KVTxn, keys 
 
 	slice := make([][]byte, len(destMap))
 	idx := 0
-	for k, v := range destMap {
-		if !v {
-			continue
+	for _, m := range members {
+		if _, ok := destMap[utils.Bytes2String(m)]; ok {
+			slice[idx] = m
+			idx++
 		}
-		slice[idx] = []byte(k)
-		idx++
 	}
 
 	return slice, nil
@@ -222,7 +221,7 @@ func (db *DBSet) sStoreGeneric(ctx context.Context, txn *transaction.KVTxn, dstK
 			return 0, err
 		}
 
-		if err := txn.Set(ek, nil); err != nil {
+		if err := txn.Set(ek, EmptySetVal); err != nil {
 			return 0, err
 		}
 	}
@@ -293,13 +292,11 @@ func (db *DBSet) sInterGeneric(ctx context.Context, txn *transaction.KVTxn, keys
 
 	slice := make([][]byte, len(destMap))
 	idx := 0
-	for k, v := range destMap {
-		if !v {
-			continue
+	for _, m := range members {
+		if _, ok := destMap[utils.Bytes2String(m)]; ok {
+			slice[idx] = m
+			idx++
 		}
-
-		slice[idx] = []byte(k)
-		idx++
 	}
 
 	return slice, nil
@@ -421,6 +418,8 @@ func (db *DBSet) SRem(ctx context.Context, key []byte, args ...[]byte) (int64, e
 
 func (db *DBSet) sUnionGeneric(ctx context.Context, txn *transaction.KVTxn, keys ...[]byte) ([][]byte, error) {
 	dstMap := make(map[string]bool)
+	slice := [][]byte{}
+
 	for _, key := range keys {
 		if err := checkKeySize(key); err != nil {
 			return nil, err
@@ -432,18 +431,11 @@ func (db *DBSet) sUnionGeneric(ctx context.Context, txn *transaction.KVTxn, keys
 		}
 
 		for _, member := range members {
+			if _, ok := dstMap[utils.Bytes2String(member)]; !ok {
+				slice = append(slice, member)
+			}
 			dstMap[utils.Bytes2String(member)] = true
 		}
-	}
-
-	slice := make([][]byte, len(dstMap))
-	idx := 0
-	for k, v := range dstMap {
-		if !v {
-			continue
-		}
-		slice[idx] = []byte(k)
-		idx++
 	}
 
 	return slice, nil
@@ -559,7 +551,7 @@ func (db *DBSet) Exists(ctx context.Context, key []byte) (int64, error) {
 }
 
 func (db *DBSet) sExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		if scnt, err := db.SCard(ctx, key); err != nil || scnt == 0 {
 			return 0, err
 		}
@@ -572,7 +564,7 @@ func (db *DBSet) sExpireAt(ctx context.Context, key []byte, when int64) (int64, 
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBSet) Expire(ctx context.Context, key []byte, duration int64) (int64, error) {

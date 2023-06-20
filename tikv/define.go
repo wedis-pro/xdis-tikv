@@ -7,8 +7,10 @@ import (
 )
 
 var (
-	ErrKeyExist     = errors.New("key exist")
-	ErrCASExhausted = errors.New("compare-and-swap exhausted")
+	ErrValueIntOutOfRange = errors.New("ERR value is not an integer or out of range")
+	ErrKeyExist           = errors.New("ERR key exist")
+	ErrCASExhausted       = errors.New("ERR compare-and-swap exhausted")
+	ErrCAS       = errors.New("ERR compare-and-swap")
 )
 
 var (

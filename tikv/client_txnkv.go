@@ -128,7 +128,7 @@ func (m *TxnKVClientWrapper) Incr(ctx context.Context, key []byte, delta int64) 
 	val, err := m.ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		n, err := utils.StrInt64(txn.Get(ctx, key))
 		if err != nil {
-			return 0, err
+			return 0, ErrValueIntOutOfRange
 		}
 		n += delta
 		err = txn.Set(key, strconv.AppendInt(nil, n, 10))

@@ -415,21 +415,30 @@ func (db *DBString) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 		return 0, nil
 	}
 
-	for _, key := range keys {
-		if err := checkKeySize(key); err != nil {
+	codedKeys := make([][]byte, len(keys))
+	for i, k := range keys {
+		if err := checkKeySize(k); err != nil {
 			return 0, err
 		}
+		codedKeys[i] = db.encodeStringKey(k)
 	}
 
 	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		var nums int64 = 0
-		for _, key := range keys {
-			n, err := db.delete(ctx, txn, key)
+		for i, k := range keys {
+			v, err := txn.Get(ctx, codedKeys[i])
 			if err != nil {
 				return 0, err
 			}
-			if n > 0 {
-				nums++
+			if v == nil {
+				continue
+			}
+			nums++
+			if err = txn.Delete(codedKeys[i]); err != nil {
+				return 0, err
+			}
+			if _, err = db.rmExpire(ctx, txn, StringType, k); err != nil {
+				return 0, err
 			}
 		}
 		return nums, nil
@@ -472,7 +481,7 @@ func (db *DBString) ExpireAt(ctx context.Context, key []byte, when int64) (int64
 }
 
 func (db *DBString) setExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		exist, err := db.Exists(ctx, key)
 		if err != nil || exist == 0 {
 			return 0, err
@@ -489,7 +498,7 @@ func (db *DBString) setExpireAt(ctx context.Context, key []byte, when int64) (in
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBString) TTL(ctx context.Context, key []byte) (int64, error) {

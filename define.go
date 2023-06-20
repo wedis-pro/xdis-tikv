@@ -118,10 +118,10 @@ var TypeName = map[byte]string{
 var (
 	ErrCmdNotSupport = errors.New("ERR cmd not supported")
 
-	ErrIntNumber   = errors.New("ERR invalid integer")
-	ErrKeySize     = errors.New("ERR invalid key size")
-	ErrValueSize   = errors.New("ERR invalid value size")
-	ErrExpireValue = errors.New("ERR invalid expire value")
+	ErrIntNumber          = errors.New("ERR invalid integer")
+	ErrKeySize            = errors.New("ERR invalid key size")
+	ErrValueSize          = errors.New("ERR invalid value size")
+	ErrExpireValue        = errors.New("ERR invalid expire value")
 
 	ErrStringKey = errors.New("ERR invalid encode string key")
 

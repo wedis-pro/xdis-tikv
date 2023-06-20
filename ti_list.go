@@ -553,7 +553,7 @@ func (db *DBList) Exists(ctx context.Context, key []byte) (int64, error) {
 }
 
 func (db *DBList) lExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		if llen, err := db.LLen(ctx, key); err != nil || llen == 0 {
 			return 0, err
 		}
@@ -567,7 +567,7 @@ func (db *DBList) lExpireAt(ctx context.Context, key []byte, when int64) (int64,
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 func (db *DBList) Expire(ctx context.Context, key []byte, duration int64) (int64, error) {
 	if duration <= 0 {

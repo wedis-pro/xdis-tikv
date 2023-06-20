@@ -69,6 +69,7 @@ func (m *RawKVClientWrapper) Incr(ctx context.Context, key []byte, delta int64) 
 		val, err = m.client.Get(ctx, key)
 		preInt, err = utils.StrInt64(val, err)
 		if err != nil {
+			err = ErrValueIntOutOfRange
 			return
 		}
 		newInt = preInt + delta

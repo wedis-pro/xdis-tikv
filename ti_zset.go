@@ -816,7 +816,7 @@ func (db *DBZSet) Exists(ctx context.Context, key []byte) (int64, error) {
 }
 
 func (db *DBZSet) sExpireAt(ctx context.Context, key []byte, when int64) (int64, error) {
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		if scnt, err := db.ZCard(ctx, key); err != nil || scnt == 0 {
 			return 0, err
 		}
@@ -829,7 +829,7 @@ func (db *DBZSet) sExpireAt(ctx context.Context, key []byte, when int64) (int64,
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBZSet) Expire(ctx context.Context, key []byte, duration int64) (int64, error) {

@@ -32,7 +32,7 @@ func (db *DBBitmap) BitOP(ctx context.Context, op string, destKey []byte, srcKey
 		return 0, nil
 	}
 
-	key := db.encodeBitmapKey(srcKeys[0])
+	key := db.encodeStringKey(srcKeys[0])
 	value, err := db.kvClient.GetKVClient().Get(ctx, key)
 	if err != nil {
 		return 0, err
@@ -48,7 +48,7 @@ func (db *DBBitmap) BitOP(ctx context.Context, op string, destKey []byte, srcKey
 				return 0, err
 			}
 
-			key = db.encodeBitmapKey(srcKeys[j])
+			key = db.encodeStringKey(srcKeys[j])
 			ovalue, err := db.kvClient.GetKVClient().Get(ctx, key)
 			if err != nil {
 				return 0, err
@@ -84,7 +84,7 @@ func (db *DBBitmap) BitOP(ctx context.Context, op string, destKey []byte, srcKey
 		} // end for
 	} // end if
 
-	key = db.encodeBitmapKey(destKey)
+	key = db.encodeStringKey(destKey)
 	err = db.kvClient.GetKVClient().Put(ctx, key, value)
 	if err != nil {
 		return 0, err
@@ -117,7 +117,7 @@ func (db *DBBitmap) BitCount(ctx context.Context, key []byte, start int, end int
 		return 0, err
 	}
 
-	key = db.encodeBitmapKey(key)
+	key = db.encodeStringKey(key)
 	value, err := db.kvClient.GetKVClient().Get(ctx, key)
 	if err != nil {
 		return 0, err
@@ -153,7 +153,7 @@ func (db *DBBitmap) BitPos(ctx context.Context, key []byte, on int, start int, e
 		skipValue = 0xFF
 	}
 
-	key = db.encodeBitmapKey(key)
+	key = db.encodeStringKey(key)
 	value, err := db.kvClient.GetKVClient().Get(ctx, key)
 	if err != nil {
 		return 0, err
@@ -185,7 +185,7 @@ func (db *DBBitmap) SetBit(ctx context.Context, key []byte, offset int, on int) 
 		return 0, fmt.Errorf("bit must be 0 or 1, not %d", on)
 	}
 
-	key = db.encodeBitmapKey(key)
+	key = db.encodeStringKey(key)
 	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		value, err := txn.Get(ctx, key)
 		if err != nil {
@@ -225,7 +225,7 @@ func (db *DBBitmap) GetBit(ctx context.Context, key []byte, offset int) (int64, 
 		return 0, err
 	}
 
-	key = db.encodeBitmapKey(key)
+	key = db.encodeStringKey(key)
 	value, err := db.kvClient.GetKVClient().Get(ctx, key)
 	if err != nil {
 		return 0, err

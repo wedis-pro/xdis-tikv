@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	tikverr "github.com/tikv/client-go/v2/error"
 	"github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/utils"
@@ -114,7 +115,12 @@ func (m *TxnKVClientWrapper) Get(ctx context.Context, key []byte) (val []byte, e
 		return
 	}
 
-	return tx.Get(ctx, key)
+	val, err = tx.Get(ctx, key)
+	if tikverr.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	return
 }
 
 // Incr txn incr

@@ -401,7 +401,7 @@ func (db *DBString) Append(ctx context.Context, key []byte, value []byte) (int64
 }
 
 func (db *DBString) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
-	ek := db.encodeBitmapKey(key)
+	ek := db.encodeStringKey(key)
 	if err = txn.Delete(ek); err != nil {
 		return
 	}

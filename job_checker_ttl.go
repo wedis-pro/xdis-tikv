@@ -108,7 +108,7 @@ func (c *TTLChecker) clearExpired(ctx context.Context, when, now int64) (nextWhe
 			}
 			// check expire again
 			if exp > now {
-				return nil, nil
+				return nil, ErrTTLNoExp
 			}
 			if _, err = cb(ctx, txn, k); err != nil {
 				return nil, err
@@ -121,8 +121,11 @@ func (c *TTLChecker) clearExpired(ctx context.Context, when, now int64) (nextWhe
 			}
 			return nil, nil
 		})
-		if err != nil {
+		if err != nil && err != ErrTTLNoExp {
 			return nextWhen, err
+		}
+		if err != nil && err == ErrTTLNoExp {
+			continue
 		}
 		removeCn++
 	}

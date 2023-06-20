@@ -161,6 +161,8 @@ var (
 
 	// for job err
 	ErrLeaderValSize = errors.New("ERR invalid leader checker job val size")
+	
+	ErrTTLNoExp = errors.New("ERR TTL no exp to del")
 )
 
 // For list op

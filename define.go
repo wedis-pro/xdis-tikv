@@ -191,10 +191,6 @@ const (
 	InterType byte = 53
 )
 
-var (
-	EmptySetVal = append([]byte{}, 0)
-)
-
 // For zset op
 const (
 	MinScore     int64 = math.MinInt64 + 1

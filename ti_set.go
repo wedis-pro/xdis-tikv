@@ -7,6 +7,7 @@ import (
 	"github.com/tikv/client-go/v2/rawkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/utils"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type DBSet struct {
@@ -74,7 +75,7 @@ func (db *DBSet) SAdd(ctx context.Context, key []byte, args ...[]byte) (int64, e
 				num++
 			}
 
-			if err := txn.Set(ek, EmptySetVal); err != nil {
+			if err := txn.Set(ek, tikv.EmptySetVal); err != nil {
 				return 0, err
 			}
 		}
@@ -221,7 +222,7 @@ func (db *DBSet) sStoreGeneric(ctx context.Context, txn *transaction.KVTxn, dstK
 			return 0, err
 		}
 
-		if err := txn.Set(ek, EmptySetVal); err != nil {
+		if err := txn.Set(ek, tikv.EmptySetVal); err != nil {
 			return 0, err
 		}
 	}

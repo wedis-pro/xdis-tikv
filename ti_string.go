@@ -104,29 +104,29 @@ func (db *DBString) SetNXEX(ctx context.Context, key []byte, duration int64, val
 		return 0, ErrExpireValue
 	}
 
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		ek := db.encodeStringKey(key)
 		if v, err := txn.Get(ctx, ek); err != nil {
-			return nil, err
+			return 0, err
 		} else if v != nil {
-			return nil, nil
+			return 0, nil
 		}
 
 		err := txn.Set(ek, value)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		err = db.expireAt(txn, StringType, key, time.Now().Unix()+duration)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		return nil, nil
+		return 1, nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, value []byte) (int64, error) {
@@ -138,29 +138,29 @@ func (db *DBString) SetXXEX(ctx context.Context, key []byte, duration int64, val
 		return 0, ErrExpireValue
 	}
 
-	_, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+	data, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		ek := db.encodeStringKey(key)
 		if v, err := txn.Get(ctx, ek); err != nil {
-			return nil, err
+			return 0, err
 		} else if v == nil {
-			return nil, nil
+			return 0, nil
 		}
 
 		err := txn.Set(ek, value)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		err = db.expireAt(txn, StringType, key, time.Now().Unix()+duration)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		return nil, nil
+		return 1, nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	return 1, nil
+	return int64(data.(int)), nil
 }
 
 func (db *DBString) Get(ctx context.Context, key []byte) (val []byte, err error) {
@@ -295,7 +295,7 @@ func (db *DBString) SetRange(ctx context.Context, key []byte, offset int, value 
 		}
 
 		copy(oldValue[offset:], value)
-		err = txn.Set(ekey, value)
+		err = txn.Set(ekey, oldValue)
 		if err != nil {
 			return 0, err
 		}

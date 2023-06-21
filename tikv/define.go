@@ -15,6 +15,7 @@ var (
 
 var (
 	MaxRawKVScanLimit = rawkv.MaxRawKVScanLimit
+	EmptySetVal = append([]byte{}, 0)
 )
 
 const (

@@ -60,4 +60,6 @@ require (
 
 //replace github.com/weedge/pkg => ../pkg
 
-replace github.com/tikv/client-go/v2 => github.com/weedge/client-go/v2 v2.0.0-20230620065740-704eb319bf58
+//replace github.com/tikv/client-go/v2 => ../../tikv/client-go
+
+replace github.com/tikv/client-go/v2 => github.com/weedge/client-go/v2 v2.0.0-20230621031309-54a0924ec98e

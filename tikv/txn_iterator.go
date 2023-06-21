@@ -35,7 +35,7 @@ func (m *RangeIter) Valid() bool {
 	if m.isReverse && bytes.Compare(m.minKey, m.it.Key()) > 0 {
 		return false
 	}
-	if !m.isReverse && bytes.Compare(m.maxKey, m.it.Key()) < 0 {
+	if !m.isReverse && m.maxKey != nil && bytes.Compare(m.maxKey, m.it.Key()) < 0 {
 		return false
 	}
 

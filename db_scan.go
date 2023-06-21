@@ -3,11 +3,12 @@ package xdistikv
 import (
 	"context"
 
+	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"github.com/weedge/pkg/utils"
 	"github.com/weedge/xdis-tikv/driver"
 )
 
-func (db *DB) scanGeneric(ctx context.Context, storeDataType byte, key []byte, count int,
+func (db *DB) scanGeneric(ctx context.Context, txn *transaction.KVTxn, storeDataType byte, key []byte, count int,
 	inclusive bool, match string, reverse bool) ([][]byte, error) {
 
 	r, err := utils.BuildMatchRegexp(match)
@@ -20,7 +21,7 @@ func (db *DB) scanGeneric(ctx context.Context, storeDataType byte, key []byte, c
 		return nil, err
 	}
 
-	it, err := db.buildScanIterator(ctx, minKey, maxKey, inclusive, reverse)
+	it, err := db.buildScanIterator(ctx, txn, minKey, maxKey, inclusive, reverse)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func checkScanCount(count int) int {
 	return count
 }
 
-func (db *DB) buildScanIterator(ctx context.Context, min []byte, max []byte, inclusive bool, reverse bool) (iter driver.IIterator, err error) {
+func (db *DB) buildScanIterator(ctx context.Context, txn *transaction.KVTxn, min []byte, max []byte, inclusive bool, reverse bool) (iter driver.IIterator, err error) {
 	// open (s,e)
 	minKey := append(min, 0)
 	maxKey := max
@@ -86,7 +87,7 @@ func (db *DB) buildScanIterator(ctx context.Context, min []byte, max []byte, inc
 	}
 
 	if !reverse {
-		return db.kvClient.GetTxnKVClient().Iter(ctx, nil, minKey, maxKey, 0, -1)
+		return db.kvClient.GetTxnKVClient().Iter(ctx, txn, minKey, maxKey, 0, -1)
 	}
-	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, nil, minKey, maxKey, 0, -1)
+	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, txn, minKey, maxKey, 0, -1)
 }

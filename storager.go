@@ -208,7 +208,7 @@ func (m *Storager) PrefixKey() []byte {
 // use namespace/tenantId(appId/bizId);
 func (m *Storager) FlushAll(ctx context.Context) (err error) {
 	var iter tDriver.IIterator
-	iter, err = m.kvClient.GetTxnKVClient().Iter(ctx, nil, m.prefixKey, nil, 0, -1)
+	iter, err = m.kvClient.GetTxnKVClient().Iter(ctx, nil, m.encodeFlushStartKey(), m.encodeFlushEndKey(), 0, -1)
 	if err != nil {
 		return err
 	}
@@ -225,22 +225,27 @@ func (m *Storager) FlushAll(ctx context.Context) (err error) {
 	}()
 
 	n := 0
+	nums := 0
 	for ; it.Valid(); it.Next() {
 		n++
 		if n == 10000 {
 			if err = it.GetTxn().Commit(ctx); err != nil {
-				klog.Errorf("flush all commit error: %s", err.Error())
+				klog.CtxErrorf(ctx, "flush all commit error: %s", err.Error())
 				return err
 			}
 			n = 0
 		}
-		it.GetTxn().Delete(it.Key())
+		if err = it.GetTxn().Delete(it.Key()); err != nil {
+			return
+		}
+		nums++
 	}
 
 	if err = it.GetTxn().Commit(ctx); err != nil {
-		klog.Errorf("flush all commit error: %s", err.Error())
+		klog.CtxErrorf(ctx, "flush all commit error: %s", err.Error())
 		return err
 	}
+	klog.CtxInfof(ctx, "flush all ok, cn:%d", nums)
 
 	return nil
 }

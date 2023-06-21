@@ -4,18 +4,22 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 )
 
-// FlushDB flushes the data.
+// FlushDB flushes the data in select db.
 func (db *DB) FlushDB(ctx context.Context) (drop int64, err error) {
+	return db.flushDBByScanTypeData(ctx)
+}
+
+func (db *DB) flushDBByScanTypeData(ctx context.Context) (drop int64, err error) {
 	dataTypes := []byte{
 		StringType,
 		ListType,
 		HashType,
 		SetType,
 		ZSetType,
-		BitmapType,
 	}
 
 	for _, dataType := range dataTypes {
@@ -28,8 +32,10 @@ func (db *DB) FlushDB(ctx context.Context) (drop int64, err error) {
 		if res == nil {
 			continue
 		}
+		klog.CtxInfof(ctx, "flush index %d dataType %s ok, flush cn %d", db.index, TypeName[dataType], res.(int64))
 		drop += res.(int64)
 	}
+	klog.CtxInfof(ctx, "flush db index %d ok, total flush cn %d", db.index, drop)
 
 	return
 
@@ -59,7 +65,7 @@ func (db *DB) flushType(ctx context.Context, txn *transaction.KVTxn, dataType by
 	}
 
 	var keys [][]byte
-	keys, err = db.scanGeneric(ctx, metaDataType, nil, 1024, false, "", false)
+	keys, err = db.scanGeneric(ctx, txn, metaDataType, nil, ScanOnceNums, false, "", false)
 	for len(keys) != 0 || err != nil {
 		for _, key := range keys {
 			if _, err = deleteFunc(ctx, txn, key); err != nil {
@@ -71,7 +77,7 @@ func (db *DB) flushType(ctx context.Context, txn *transaction.KVTxn, dataType by
 		}
 
 		drop += int64(len(keys))
-		keys, err = db.scanGeneric(ctx, metaDataType, nil, 1024, false, "", false)
+		keys, err = db.scanGeneric(ctx, txn, metaDataType, nil, ScanOnceNums, false, "", false)
 	}
 	return
 }

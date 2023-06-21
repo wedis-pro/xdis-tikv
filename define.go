@@ -8,7 +8,7 @@ import (
 // For different const size configuration
 const (
 	// max allowed databases
-	MaxDatabases int = 10240
+	MaxDatabases int = 128
 
 	// max key size
 	MaxKeySize int = 1024
@@ -118,10 +118,10 @@ var TypeName = map[byte]string{
 var (
 	ErrCmdNotSupport = errors.New("ERR cmd not supported")
 
-	ErrIntNumber          = errors.New("ERR invalid integer")
-	ErrKeySize            = errors.New("ERR invalid key size")
-	ErrValueSize          = errors.New("ERR invalid value size")
-	ErrExpireValue        = errors.New("ERR invalid expire value")
+	ErrIntNumber   = errors.New("ERR invalid integer")
+	ErrKeySize     = errors.New("ERR invalid key size")
+	ErrValueSize   = errors.New("ERR invalid value size")
+	ErrExpireValue = errors.New("ERR invalid expire value")
 
 	ErrStringKey = errors.New("ERR invalid encode string key")
 
@@ -161,7 +161,7 @@ var (
 
 	// for job err
 	ErrLeaderValSize = errors.New("ERR invalid leader checker job val size")
-	
+
 	ErrTTLNoExp = errors.New("ERR TTL no exp to del")
 )
 
@@ -215,6 +215,12 @@ const (
 	BitOR  = "or"
 	BitXOR = "xor"
 	BitNot = "not"
+)
+
+// for scan
+const (
+	ScanOnceNums = 1024
+	//ScanOnceNums = 1
 )
 
 // For checker job operation key

@@ -12,3 +12,12 @@ func TestDB_Implements(t *testing.T) {
 		t.Fatalf("does not implement driver.IDB")
 	}
 }
+
+var (
+	db *DB
+)
+
+func TestNewDB(t *testing.T) {
+	TestStorager_Open(t)
+	db = NewDB(store, 0)
+}

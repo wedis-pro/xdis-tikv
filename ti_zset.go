@@ -348,14 +348,15 @@ func (db *DBZSet) ZRevRank(ctx context.Context, key []byte, member []byte) (int6
 }
 
 // zIterator range close: [min,max]
-func (db *DBZSet) zIterator(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) (tDriver.IIterator, error) {
+func (db *DBZSet) zIterator(ctx context.Context, txn *transaction.KVTxn, key []byte, min int64, max int64, offset int, count int, reverse bool) (tDriver.IIterator, error) {
 	minKey := db.zEncodeStartScoreKey(key, min)
 	maxKey := db.zEncodeStopScoreKey(key, max)
 
 	if !reverse {
-		return db.kvClient.GetTxnKVClient().Iter(ctx, nil, minKey, append(maxKey, 0), offset, count)
+		//return db.kvClient.GetTxnKVClient().Iter(ctx, txn, minKey, append(maxKey, 0), offset, count)
+		return db.kvClient.GetTxnKVClient().Iter(ctx, txn, []byte{}, nil, offset, count)
 	}
-	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, nil, minKey, append(maxKey, 0), offset, count)
+	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, txn, minKey, append(maxKey, 0), offset, count)
 }
 
 func (db *DBZSet) zRange(ctx context.Context, key []byte, min int64, max int64, offset int, count int, reverse bool) ([]driver.ScorePair, error) {
@@ -374,7 +375,7 @@ func (db *DBZSet) zRange(ctx context.Context, key []byte, min int64, max int64, 
 	}
 	v := make([]driver.ScorePair, 0, nv)
 
-	it, err := db.zIterator(ctx, key, min, max, offset, count, reverse)
+	it, err := db.zIterator(ctx, nil, key, min, max, offset, count, reverse)
 	if err != nil {
 		return nil, err
 	}
@@ -703,7 +704,7 @@ func (db *DBZSet) zRemRange(ctx context.Context, txn *transaction.KVTxn, key []b
 		return 0, ErrKeySize
 	}
 
-	it, err := db.zIterator(ctx, key, min, max, offset, count, false)
+	it, err := db.zIterator(ctx, txn, key, min, max, offset, count, false)
 	if err != nil {
 		return 0, err
 	}

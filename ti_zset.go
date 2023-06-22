@@ -461,25 +461,25 @@ func (db *DBZSet) ZRevRangeByScore(ctx context.Context, key []byte, min int64, m
 
 func (db *DBZSet) scoreEncode(key []byte, min []byte, max []byte, rangeType driver.RangeType) (minScore []byte, maxScore []byte) {
 	if min == nil {
-		min = db.zEncodeStartSetKey(key)
+		minScore = db.zEncodeStartSetKey(key)
 	} else {
-		min = db.zEncodeSetKey(key, min)
+		minScore = db.zEncodeSetKey(key, min)
 	}
 	if max == nil {
-		max = db.zEncodeStopSetKey(key)
+		maxScore = db.zEncodeStopSetKey(key)
 	} else {
-		max = db.zEncodeSetKey(key, max)
+		maxScore = db.zEncodeSetKey(key, max)
 	}
 
 	switch rangeType {
 	case driver.RangeClose:
-		maxScore = append(max, 0)
+		maxScore = append(maxScore, 0)
 	case driver.RangeROpen:
 	case driver.RangeLOpen:
-		minScore = append(min, 0)
-		maxScore = append(max, 0)
+		minScore = append(minScore, 0)
+		maxScore = append(maxScore, 0)
 	case driver.RangeOpen:
-		minScore = append(min, 0)
+		minScore = append(minScore, 0)
 	default:
 		return nil, nil
 	}

@@ -29,7 +29,7 @@ func (m *RangeIter) Valid() bool {
 	if !m.it.Valid() {
 		return false
 	}
-	if m.limit >= 0 && m.step >= m.limit {
+	if m.limit >= 0 && m.step >= (m.limit+m.offset) {
 		return false
 	}
 	if m.isReverse && bytes.Compare(m.minKey, m.it.Key()) > 0 {

@@ -10,12 +10,12 @@ var (
 	ErrValueIntOutOfRange = errors.New("ERR value is not an integer or out of range")
 	ErrKeyExist           = errors.New("ERR key exist")
 	ErrCASExhausted       = errors.New("ERR compare-and-swap exhausted")
-	ErrCAS       = errors.New("ERR compare-and-swap")
+	ErrCAS                = errors.New("ERR compare-and-swap")
 )
 
 var (
 	MaxRawKVScanLimit = rawkv.MaxRawKVScanLimit
-	EmptySetVal = append([]byte{}, 0)
+	EmptySetVal       = []byte{0}
 )
 
 const (

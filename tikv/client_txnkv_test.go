@@ -212,3 +212,65 @@ func TestTxnKVClientWrapper_ExecutTxn_Put_Iter(t *testing.T) {
 		t.Fatalf("err %s", err.Error())
 	}
 }
+
+func TestTxnKVClientWrapper_ExecutTxn_Iter_2(t *testing.T) {
+	TestInitTxnClient(t)
+
+	cn := 3
+	key := []byte("\x00\x01\x00\n\x00\azaddkey=\x00\x00\x00\x00\x00\x00\x00\x01:m1")
+	// notice: don't set empty val, tikv don't scan empty val key
+	val := EmptySetVal
+	for i := 0; i < cn; i++ {
+		//k := append(key, []byte(strconv.Itoa(i))...)
+		k := append(key, byte(i))
+		err = kvClient.Put(ctx, k, val)
+		if err != nil {
+			t.Fatalf("put err %s", err.Error())
+		}
+		v, err := kvClient.Get(ctx, k)
+		if err != nil {
+			t.Fatalf("get err %s", err.Error())
+		}
+		if !reflect.DeepEqual(val, v) {
+			t.Fatalf("get %s expected %s", v, val)
+		}
+	}
+
+	_, err = kvClient.ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
+		minKey := []byte("\x00\x01\x00\n\x00\azaddkey<\x80\x00\x00\x00\x00\x00\x00\x01:")
+		maxKey := []byte("\x00\x01\x00\n\x00\azaddkey=\x7f\xff\xff\xff\xff\xff\xff\xff;")
+		iter, err := kvClient.Iter(ctx, txn, minKey, maxKey, 0, -1)
+		if err != nil {
+			t.Fatalf("iter err %s", err.Error())
+		}
+		_, ok := iter.(*RangeIter)
+		if !ok {
+			t.Fatalf("iter not RangeIter")
+		}
+
+		i := 0
+		for ; iter.Valid(); iter.Next() {
+			ik := iter.Key()
+			//k := append(key, []byte(strconv.Itoa(i))...)
+			k := append(key, byte(i))
+			if !reflect.DeepEqual(ik, k) {
+				t.Fatalf("get %s expected %s", ik, k)
+			}
+			i++
+			err = txn.Delete(ik)
+			if err != nil {
+				t.Fatalf("delete key %s err %s", ik, err.Error())
+			}
+		}
+		iter.Close()
+
+		if !reflect.DeepEqual(cn, i) {
+			t.Fatalf("get %d expected %d", i, cn)
+		}
+
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("err %s", err.Error())
+	}
+}

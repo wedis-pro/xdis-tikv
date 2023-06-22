@@ -32,7 +32,7 @@ func TestDBZSet_Del(t *testing.T) {
 	if err != nil {
 		t.Fatalf("zset del fail err:%s", err.Error())
 	}
-	if !reflect.DeepEqual(n, int64(len(args))) {
-		t.Fatalf("zset del fail get %d expected %d", n, int64(len(args)))
+	if !reflect.DeepEqual(n, int64(1)) {
+		t.Fatalf("zset del fail get %d expected %d", n, int64(1))
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/weedge/pkg/driver"
 	"github.com/weedge/pkg/utils"
 	tDriver "github.com/weedge/xdis-tikv/driver"
+	"github.com/weedge/xdis-tikv/tikv"
 )
 
 type DBZSet struct {
@@ -55,7 +56,7 @@ func (db *DBZSet) zSetItem(ctx context.Context, txn *transaction.KVTxn, key []by
 	}
 
 	sk := db.zEncodeScoreKey(key, member, score)
-	if err := txn.Set(sk, []byte{}); err != nil {
+	if err := txn.Set(sk, tikv.EmptySetVal); err != nil {
 		return 0, err
 	}
 
@@ -251,7 +252,7 @@ func (db *DBZSet) ZIncrBy(ctx context.Context, key []byte, delta int64, member [
 		}
 
 		sk := db.zEncodeScoreKey(key, member, newScore)
-		if err := txn.Set(sk, []byte{}); err != nil {
+		if err := txn.Set(sk, tikv.EmptySetVal); err != nil {
 			return InvalidScore, err
 		}
 		if err := txn.Set(ek, PutInt64(newScore)); err != nil {
@@ -353,8 +354,7 @@ func (db *DBZSet) zIterator(ctx context.Context, txn *transaction.KVTxn, key []b
 	maxKey := db.zEncodeStopScoreKey(key, max)
 
 	if !reverse {
-		//return db.kvClient.GetTxnKVClient().Iter(ctx, txn, minKey, append(maxKey, 0), offset, count)
-		return db.kvClient.GetTxnKVClient().Iter(ctx, txn, []byte{}, nil, offset, count)
+		return db.kvClient.GetTxnKVClient().Iter(ctx, txn, minKey, append(maxKey, 0), offset, count)
 	}
 	return db.kvClient.GetTxnKVClient().ReverseIter(ctx, txn, minKey, append(maxKey, 0), offset, count)
 }
@@ -516,15 +516,25 @@ func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, ma
 		}
 		defer it.Close()
 
-		var n int64
+		var num int64
 		for ; it.Valid(); it.Next() {
+			ek := it.Key()
+			_, m, err := db.zDecodeSetKey(ek)
+			if err != nil {
+				continue
+			}
+			if n, err := db.zDelItem(ctx, txn, key, m, false); err != nil {
+				return 0, err
+			} else if n == 1 {
+				num++
+			}
+
 			if err := txn.Delete(it.Key()); err != nil {
 				return 0, err
 			}
-			n++
 		}
 
-		return n, nil
+		return num, nil
 	})
 	if err != nil {
 		return 0, err
@@ -717,7 +727,7 @@ func (db *DBZSet) zRemRange(ctx context.Context, txn *transaction.KVTxn, key []b
 			continue
 		}
 
-		if n, err := db.zDelItem(ctx, txn, key, m, true); err != nil {
+		if n, err := db.zDelItem(ctx, txn, key, m, false); err != nil {
 			return 0, err
 		} else if n == 1 {
 			num++

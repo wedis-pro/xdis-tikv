@@ -64,6 +64,9 @@ func (db *DBZSet) zSetItem(ctx context.Context, txn *transaction.KVTxn, key []by
 }
 
 func (db *DBZSet) zIncrSize(ctx context.Context, txn *transaction.KVTxn, key []byte, delta int64) (int64, error) {
+	if delta == 0 {
+		return 0, nil
+	}
 	sk := db.zEncodeSizeKey(key)
 	size, err := Int64(txn.Get(ctx, sk))
 	if err != nil {
@@ -209,7 +212,6 @@ func (db *DBZSet) ZRem(ctx context.Context, key []byte, members ...[]byte) (int6
 				num++
 			}
 		}
-
 		if _, err := db.zIncrSize(ctx, txn, key, -num); err != nil {
 			return 0, err
 		}
@@ -528,10 +530,9 @@ func (db *DBZSet) ZRemRangeByLex(ctx context.Context, key []byte, min []byte, ma
 			} else if n == 1 {
 				num++
 			}
-
-			if err := txn.Delete(it.Key()); err != nil {
-				return 0, err
-			}
+		}
+		if _, err := db.zIncrSize(ctx, txn, key, -num); err != nil {
+			return 0, err
 		}
 
 		return num, nil
@@ -732,16 +733,8 @@ func (db *DBZSet) zRemRange(ctx context.Context, txn *transaction.KVTxn, key []b
 		} else if n == 1 {
 			num++
 		}
-
-		if err := txn.Delete(sk); err != nil {
-			return 0, err
-		}
 	}
 	it.Close()
-
-	if _, err := db.zIncrSize(ctx, txn, key, -num); err != nil {
-		return 0, err
-	}
 
 	return num, nil
 }
@@ -754,7 +747,14 @@ func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, st
 	}
 
 	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
-		return db.zRemRange(ctx, txn, key, MinScore, MaxScore, offset, count)
+		n, err := db.zRemRange(ctx, txn, key, MinScore, MaxScore, offset, count)
+		if err != nil {
+			return 0, err
+		}
+		if _, err := db.zIncrSize(ctx, txn, key, -n); err != nil {
+			return 0, err
+		}
+		return n, nil
 	})
 	if err != nil {
 		return 0, err
@@ -768,7 +768,14 @@ func (db *DBZSet) ZRemRangeByRank(ctx context.Context, key []byte, start int, st
 // ZRemRangeByScore removes the data with score at [min, max]
 func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, max int64) (int64, error) {
 	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
-		return db.zRemRange(ctx, txn, key, min, max, 0, -1)
+		n, err := db.zRemRange(ctx, txn, key, min, max, 0, -1)
+		if err != nil {
+			return 0, err
+		}
+		if _, err := db.zIncrSize(ctx, txn, key, -n); err != nil {
+			return 0, err
+		}
+		return n, nil
 	})
 	if err != nil {
 		return 0, err
@@ -781,6 +788,13 @@ func (db *DBZSet) ZRemRangeByScore(ctx context.Context, key []byte, min int64, m
 
 func (db *DBZSet) delete(ctx context.Context, txn *transaction.KVTxn, key []byte) (num int64, err error) {
 	num, err = db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1)
+	if err != nil {
+		return
+	}
+	sizeKey := db.zEncodeSizeKey(key)
+	if err = txn.Delete(sizeKey); err != nil {
+		return 0, err
+	}
 	return
 }
 
@@ -797,7 +811,7 @@ func (db *DBZSet) Del(ctx context.Context, keys ...[]byte) (int64, error) {
 	res, err := db.kvClient.GetTxnKVClient().ExecuteTxn(ctx, func(txn *transaction.KVTxn) (interface{}, error) {
 		var nums int64 = 0
 		for _, key := range keys {
-			n, err := db.zRemRange(ctx, txn, key, MinScore, MaxScore, 0, -1)
+			n, err := db.delete(ctx, txn, key)
 			if err != nil {
 				return 0, err
 			}

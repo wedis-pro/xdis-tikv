@@ -29,7 +29,8 @@ func (db *DB) scanGeneric(ctx context.Context, txn *transaction.KVTxn, storeData
 	count = checkScanCount(count)
 	v := make([][]byte, 0, count)
 	for i := 0; it.Valid() && i < count; it.Next() {
-		if k, err := db.decodeScanKey(storeDataType, it.Key()); err != nil {
+		key := it.Key()
+		if k, err := db.decodeScanKey(storeDataType, key); err != nil {
 			continue
 		} else if r != nil && !r.Match(k) {
 			continue

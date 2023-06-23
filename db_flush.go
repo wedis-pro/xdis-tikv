@@ -66,17 +66,21 @@ func (db *DB) flushType(ctx context.Context, txn *transaction.KVTxn, dataType by
 
 	var keys [][]byte
 	keys, err = db.scanGeneric(ctx, txn, metaDataType, nil, ScanOnceNums, false, "", false)
-	for len(keys) != 0 || err != nil {
-		for _, key := range keys {
-			if _, err = deleteFunc(ctx, txn, key); err != nil {
+	for len(keys) != 0 && err == nil {
+		klog.CtxDebugf(ctx, "flush db index %d ok, type %s keyslen %d", db.index, TypeName[dataType], len(keys))
+		for i, key := range keys {
+			if n, err := deleteFunc(ctx, txn, key); err != nil {
 				return 0, err
+			} else if n > 0 {
+				drop++
 			}
 			if _, err = db.rmExpire(ctx, txn, dataType, key); err != nil {
 				return 0, err
 			}
+			_ = i
 		}
 
-		drop += int64(len(keys))
+		//drop += int64(len(keys))
 		keys, err = db.scanGeneric(ctx, txn, metaDataType, nil, ScanOnceNums, false, "", false)
 	}
 	return

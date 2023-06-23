@@ -34,6 +34,9 @@ func NewLeaderChecker(opts *config.LeaderJobOptions, client *tikv.Client, store 
 
 func (m *LeaderChecker) Run(ctx context.Context) {
 	m.check(ctx)
+	if m.opts.LeaderCheckInterval <= 0 {
+		return
+	}
 	klog.CtxInfof(ctx, "start leader checker with interval %d seconds, lease %d seconds", m.opts.LeaderCheckInterval, m.opts.LeaderLeaseDuration)
 	ticker := time.NewTicker(time.Duration(m.opts.LeaderCheckInterval) * time.Second)
 	for {
